@@ -2,7 +2,7 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
-BASE_DIR = Path(__file__).resolve().parents[1]
+BASE_DIR = Path(__file__).resolve().parent
 PARQUET_FILE = BASE_DIR / "data" / "events.parquet"
 
 st.set_page_config(page_title="Entradas vs Saídas", layout="wide")
