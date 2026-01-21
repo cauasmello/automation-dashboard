@@ -41,9 +41,9 @@ credentials/
 *.session
 *.session-journal
 
-# --- Estado da aplicação (evita duplicar/alterar histórico no Git) ---
-data/state.json
+# # --- Estado da aplicação (evita duplicar/alterar histórico no Git) ---
+# data/state.json
 
-# --- Opcional: se você salvar exports locais ---
-data/*.csv
-data/*.xlsx
+# # --- Opcional: se você salvar exports locais ---
+# data/*.csv
+# data/*.xlsx
