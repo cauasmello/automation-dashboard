@@ -1,0 +1,49 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.pyd
+*.so
+*.egg-info/
+dist/
+build/
+.cache/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# --- Virtualenv ---
+.venv/
+venv/
+ENV/
+env/
+
+# --- Jupyter (se usar) ---
+.ipynb_checkpoints/
+
+# --- VSCode / IDEs ---
+.vscode/
+.idea/
+
+# --- OS files ---
+.DS_Store
+Thumbs.db
+
+# --- Logs ---
+*.log
+
+# --- Credenciais e segredos (NÃO COMMITAR) ---
+credentials/
+**/service_account.json
+*.pem
+*.key
+
+# --- Telethon session (NÃO COMMITAR) ---
+*.session
+*.session-journal
+
+# --- Estado da aplicação (evita duplicar/alterar histórico no Git) ---
+data/state.json
+
+# --- Opcional: se você salvar exports locais ---
+data/*.csv
+data/*.xlsx

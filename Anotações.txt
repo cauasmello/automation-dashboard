@@ -1,0 +1,6 @@
+App api_id: "35103688"
+App api_hash: "1b74504c536d99afaf344fe8a5a32a1f"
+
+ID da conta de serviço(Google Cloud): "telegram-sheets-writer"
+
+Criar ambiente virtual: "python -m venv .venv"
