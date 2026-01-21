@@ -47,3 +47,5 @@ credentials/
 # # --- Opcional: se você salvar exports locais ---
 # data/*.csv
 # data/*.xlsx
+
+data/state.json

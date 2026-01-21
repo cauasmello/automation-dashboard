@@ -2,12 +2,21 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
-BASE_DIR = Path(__file__).resolve().parent
+BASE_DIR = Path(__file__).resolve().parent.parent
 PARQUET_FILE = BASE_DIR / "data" / "events.parquet"
 
 st.set_page_config(page_title="Entradas vs Saídas", layout="wide")
 
 st.title("Dashboard - Entradas vs Saídas")
+
+st.write("BASE_DIR:", str(BASE_DIR))
+st.write("PARQUET_FILE:", str(PARQUET_FILE))
+st.write("EXISTS:", PARQUET_FILE.exists())
+
+data_dir = BASE_DIR / "data"
+st.write("data/ exists:", data_dir.exists())
+if data_dir.exists():
+    st.write("data/ files:", [p.name for p in data_dir.glob("*")])
 
 if not PARQUET_FILE.exists():
     st.warning("Ainda não existe data/events.parquet. Rode export_to_parquet.py primeiro.")
