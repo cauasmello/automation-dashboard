@@ -9,10 +9,6 @@ st.set_page_config(page_title="Entradas vs Saídas", layout="wide")
 
 st.title("Dashboard - Entradas vs Saídas")
 
-st.write("BASE_DIR:", str(BASE_DIR))
-st.write("PARQUET_FILE:", str(PARQUET_FILE))
-st.write("EXISTS:", PARQUET_FILE.exists())
-
 data_dir = BASE_DIR / "data"
 st.write("data/ exists:", data_dir.exists())
 if data_dir.exists():
