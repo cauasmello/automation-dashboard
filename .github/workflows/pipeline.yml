@@ -42,7 +42,7 @@ jobs:
           GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
           TELETHON_SESSION: ${{ secrets.TELETHON_SESSION }}
         run: |
-          python telegram_to_sheets.py
+          python src/telegram_to_sheets.py
 
       - name: Run export_to_parquet.py
         env:
@@ -50,7 +50,7 @@ jobs:
           WORKSHEET_NAME: ${{ secrets.WORKSHEET_NAME }}
           GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
         run: |
-          python export_to_parquet.py
+          python src/export_to_parquet.py
 
       - name: Commit and push (only if files changed)
         run: |
