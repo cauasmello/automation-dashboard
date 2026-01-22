@@ -1,0 +1,63 @@
+name: Pipeline (Telegram -> Sheets -> Parquet)
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"  # a cada 10 minutos
+  workflow_dispatch:        # permite rodar manualmente pelo GitHub
+
+permissions:
+  contents: write           # necessário para conseguir dar commit/push
+
+concurrency:
+  group: pipeline-telegram-sheets-parquet
+  cancel-in-progress: true
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install telethon gspread google-auth pandas pyarrow
+
+      - name: Run telegram_to_sheets.py
+        env:
+          API_ID: ${{ secrets.API_ID }}
+          API_HASH: ${{ secrets.API_HASH }}
+          CHANNEL: ${{ secrets.CHANNEL }}
+          SHEET_ID: ${{ secrets.SHEET_ID }}
+          WORKSHEET_NAME: ${{ secrets.WORKSHEET_NAME }}
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          TELETHON_SESSION: ${{ secrets.TELETHON_SESSION }}
+        run: |
+          python telegram_to_sheets.py
+
+      - name: Run export_to_parquet.py
+        env:
+          SHEET_ID: ${{ secrets.SHEET_ID }}
+          WORKSHEET_NAME: ${{ secrets.WORKSHEET_NAME }}
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+        run: |
+          python export_to_parquet.py
+
+      - name: Commit and push (only if files changed)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add data/events.parquet data/state.json
+
+          git diff --cached --quiet || git commit -m "Auto-update data files"
+          git push
