@@ -33,9 +33,7 @@ Thumbs.db
 
 # --- Credenciais e segredos (NÃO COMMITAR) ---
 credentials/
-**/service_account.json
-*.pem
-*.key
+*.session
 
 # --- Telethon session (NÃO COMMITAR) ---
 *.session
@@ -48,4 +46,6 @@ credentials/
 # data/*.csv
 # data/*.xlsx
 
-data/state.json
+.env
+
+__pycache__/
