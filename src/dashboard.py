@@ -106,7 +106,7 @@ if len(selected_rows) == 1:
     )
     st.markdown(card_html, unsafe_allow_html=True)
 else:
-    st.caption("Selecione uma linha acima para ver os detalhes em formato de carta.")
+    st.caption("Selecione uma linha acima para ver os detalhes.")
 
 
 # Normaliza valores para numérico
