@@ -111,6 +111,9 @@ async def main():
     print("last_id carregado:", last_id)
 
     async with client:
+        channel = os.getenv("CHANNEL", "").strip()
+        if channel.lstrip("-").isdigit():
+            channel = int(channel)
         entity = await client.get_entity(channel)
         print("Canal carregado com sucesso.")
 
