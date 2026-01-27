@@ -88,7 +88,7 @@ async def main():
     channel = _get_required("CHANNEL")
 
     sheet_id = _get_required("SHEET_ID")
-    worksheet_name = os.getenv("WORKSHEET_NAME", "Página1")
+    worksheet_name = os.getenv("WORKSHEET_NAME")
     service_account_json = _get_required("GOOGLE_SERVICE_ACCOUNT_JSON")
 
     telethon_session = os.getenv("TELETHON_SESSION", "").strip()
