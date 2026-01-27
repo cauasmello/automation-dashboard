@@ -172,12 +172,18 @@ def _esc(txt_val):
     return str(txt_val).replace('&','&amp;').replace('<','&lt;').replace('>','&gt;')
 
 pos = [
-    {"top": "14%", "left": "18%", "rot": "-10deg"},
-    {"top": "14%", "left": "62%", "rot": "10deg"},
-    {"top": "38%", "left": "77%", "rot": "18deg"},
-    {"top": "62%", "left": "62%", "rot": "12deg"},
-    {"top": "72%", "left": "40%", "rot": "0deg"},
-    {"top": "62%", "left": "16%", "rot": "-14deg"},
+    # Carta 1 – topo‑esquerda, abaixo do título, bem dentro da mesa
+    {"top": "24%", "left": "18%", "rot": "-12deg"},
+    # Carta 2 – topo‑direita, simétrica à 1, também abaixo do título
+    {"top": "24%", "left": "63%", "rot": "10deg"},
+    # Carta 3 – meio‑direita, lateral da mesa
+    {"top": "46%", "left": "73%", "rot": "16deg"},
+    # Carta 4 – baixo‑direita, parte inferior da mesa
+    {"top": "64%", "left": "58%", "rot": "10deg"},
+    # Carta 5 – centro‑inferior, bem no “pé” da mesa
+    {"top": "70%", "left": "39%", "rot": "0deg"},
+    # Carta 6 – baixo‑esquerda, espelho da 4
+    {"top": "64%", "left": "20%", "rot": "-14deg"},
 ]
 
 table_html = (
