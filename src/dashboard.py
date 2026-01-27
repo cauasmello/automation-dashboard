@@ -186,7 +186,7 @@ pos = [
 ]
 
 table_html = (
-    '<div style="width: 100%; display:flex; justify-content:center; margin: 10px 0 24px 0;">'
+    '<div style="width: 100%; display:flex; justify-content:center; margin: 5px 0 12px 0;">'
     '<div style="position:relative; width: 100%; max-width: 1100px; height: 620px;">'
 
     # Moldura externa (preto/azul escuro)
