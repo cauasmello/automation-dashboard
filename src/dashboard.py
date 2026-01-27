@@ -123,3 +123,88 @@ for c in [entrada_col, saida_col]:
 if data_col:
     work_df[data_col] = pd.to_datetime(work_df[data_col], errors="coerce")
 
+# Top 6 Saídas mais caras (mesa de pôquer)
+st.subheader("Maiores Saídas por Produto")
+
+produto_col = (
+    col_map.get("produto")
+    or col_map.get("tipo produto")
+    or col_map.get("tipoproduto")
+    or col_map.get("descricao")
+    or col_map.get("descrição")
+)
+
+top_src = work_df.copy()
+if produto_col is None:
+    top_src["__produto__"] = "(sem produto)"
+    produto_col = "__produto__"
+
+top_src["__saida_num__"] = pd.to_numeric(top_src[saida_col], errors="coerce")
+top6 = (
+    top_src[[produto_col, "__saida_num__"]]
+    .dropna(subset=["__saida_num__"])
+    .sort_values("__saida_num__", ascending=False)
+    .head(6)
+)
+
+def _fmt_brl(vv):
+    try:
+        if pd.isna(vv):
+            return ""
+        s = ("{:\,.2f}".format(float(vv))).replace(",", "X").replace(".", ",").replace("X", ".")
+        return "R$ " + s
+    except Exception:
+        return str(vv)
+
+cards = []
+for _, rr in top6.iterrows():
+    prod_txt = str(rr[produto_col])
+    saida_txt = _fmt_brl(rr["__saida_num__"])
+    cards.append({"produto": prod_txt, "saida": saida_txt})
+
+while len(cards) < 6:
+    cards.append({"produto": "", "saida": ""})
+
+def _esc(txt_val):
+    if txt_val is None:
+        return ""
+    return str(txt_val).replace('&','&amp;').replace('<','&lt;').replace('>','&gt;')
+
+pos = [
+    {"top": "14%", "left": "18%", "rot": "-10deg"},
+    {"top": "14%", "left": "62%", "rot": "10deg"},
+    {"top": "38%", "left": "77%", "rot": "18deg"},
+    {"top": "62%", "left": "62%", "rot": "12deg"},
+    {"top": "72%", "left": "40%", "rot": "0deg"},
+    {"top": "62%", "left": "16%", "rot": "-14deg"},
+]
+
+table_html = (
+    '<div style="width: 100%; display:flex; justify-content:center; margin: 10px 0 24px 0;">'
+    '<div style="position:relative; width: 860px; height: 480px;">'
+    '<div style="position:absolute; inset: 0; background: #0B1220; border-radius: 28px;"></div>'
+    '<div style="position:absolute; inset: 26px; background: #7f1d1d; border-radius: 240px;"></div>'
+    '<div style="position:absolute; inset: 44px; background: #166534; border-radius: 240px;"></div>'
+    '<div style="position:absolute; top: 50px; left: 0; right: 0; text-align:center;">'
+    '<div style="font-size: 30px; font-weight: 800; color: #ffffff;">Maiores Saídas por Produto</div>'
+    '</div>'
+)
+
+for i_card in range(6):
+    produto_txt = _esc(cards[i_card]["produto"])
+    saida_txt = _esc(cards[i_card]["saida"])
+    p = pos[i_card]
+    table_html += (
+        '<div style="position:absolute; top:' + p["top"] + '; left:' + p["left"] + ';'
+        ' width: 150px; height: 220px; transform: rotate(' + p["rot"] + ');'
+        ' background:#b91c1c; border: 4px solid #f3f4f6; border-radius: 16px; box-shadow: 0 10px 24px rgba(0,0,0,0.30);">'
+        '<div style="position:absolute; inset: 0; display:flex; align-items:center; justify-content:center; padding: 14px;">'
+        '<div style="text-align:center; color:#ffffff; font-weight:700; font-size: 14px; line-height: 1.6;">'
+        + 'Produto: &quot;' + produto_txt + '&quot;<br>'
+        + 'Saída: &quot;' + saida_txt + '&quot;'
+        + '</div></div></div>'
+    )
+
+table_html += '</div></div>'
+st.markdown(table_html, unsafe_allow_html=True)
+
