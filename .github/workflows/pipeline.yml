@@ -2,7 +2,7 @@ name: Pipeline (Telegram -> Sheets -> Parquet)
 
 on:
   schedule:
-    - cron: "*/10 * * * *"  # a cada 10 minutos
+    - cron: "0 0 * * *" # todo dia meia noite
   workflow_dispatch:        # permite rodar manualmente pelo GitHub
 
 permissions:
