@@ -123,6 +123,7 @@ for c in [entrada_col, saida_col]:
 if data_col:
     work_df[data_col] = pd.to_datetime(work_df[data_col], errors="coerce")
 
+
 # Top 6 Saídas mais caras (mesa de pôquer)
 st.subheader("Maiores Saídas por Produto")
 
@@ -180,8 +181,8 @@ pos = [
 ]
 
 table_html = (
-    '<div style="width: 100%; display:flex; justify-content:center; margin: 100px 0 240px 0;">'
-    '<div style="position:relative; width: 8600px; height: 4800px;">'
+    '<div style="width: 100%; display:flex; justify-content:center; margin: 10px 0 24px 0;">'
+    '<div style="position:relative; width: 860px; height: 480px;">'
     '<div style="position:absolute; inset: 0; background: #0B1220; border-radius: 28px;"></div>'
     '<div style="position:absolute; inset: 26px; background: #7f1d1d; border-radius: 240px;"></div>'
     '<div style="position:absolute; inset: 44px; background: #166534; border-radius: 240px;"></div>'
