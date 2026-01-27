@@ -36,7 +36,7 @@ if not entrada_col or not saida_col:
 
 
 
-st.subheader("Prévia (clique em uma linha)")
+st.subheader("Selecione uma linha")
 preview_df = df_raw.head(200).copy()
 preview_event = st.dataframe(
     preview_df,
