@@ -172,31 +172,37 @@ def _esc(txt_val):
     return str(txt_val).replace('&','&amp;').replace('<','&lt;').replace('>','&gt;')
 
 pos = [
-    # Carta 1 – topo‑esquerda, abaixo do título, bem dentro da mesa
-    {"top": "24%", "left": "18%", "rot": "-12deg"},
-    # Carta 2 – topo‑direita, simétrica à 1, também abaixo do título
-    {"top": "24%", "left": "63%", "rot": "10deg"},
-    # Carta 3 – meio‑direita, lateral da mesa
-    {"top": "46%", "left": "73%", "rot": "16deg"},
-    # Carta 4 – baixo‑direita, parte inferior da mesa
-    {"top": "64%", "left": "58%", "rot": "10deg"},
-    # Carta 5 – centro‑inferior, bem no “pé” da mesa
-    {"top": "70%", "left": "39%", "rot": "0deg"},
-    # Carta 6 – baixo‑esquerda, espelho da 4
-    {"top": "64%", "left": "20%", "rot": "-14deg"},
+    # topo (sempre abaixo do título)
+    {"top": "22%", "left": "20%", "rot": "-12deg"},
+    {"top": "22%", "left": "66%", "rot": "10deg"},
+
+    # laterais
+    {"top": "44%", "left": "76%", "rot": "16deg"},
+    {"top": "64%", "left": "60%", "rot": "10deg"},
+
+    # base
+    {"top": "72%", "left": "40%", "rot": "0deg"},
+    {"top": "64%", "left": "18%", "rot": "-14deg"},
 ]
 
 table_html = (
     '<div style="width: 100%; display:flex; justify-content:center; margin: 10px 0 24px 0;">'
-    '<div style="position:relative; width: 860px; height: 480px;">'
+    '<div style="position:relative; width: 100%; max-width: 1100px; height: 620px;">'
+
+    # Moldura externa (preto/azul escuro)
     '<div style="position:absolute; inset: 0; background: #0B1220; border-radius: 28px;"></div>'
-    '<div style="position:absolute; inset: 26px; background: #7f1d1d; border-radius: 240px;"></div>'
-    '<div style="position:absolute; inset: 44px; background: #166534; border-radius: 240px;"></div>'
-    '<div style="position:absolute; top: 50px; left: 0; right: 0; text-align:center;">'
+
+    # Borda vermelha
+    '<div style="position:absolute; inset: 30px; background: #7f1d1d; border-radius: 320px;"></div>'
+
+    # Feltro verde (mesa)
+    '<div style="position:absolute; inset: 52px; background: #166534; border-radius: 320px;"></div>'
+
+    # Título (mais alto para não conflitar com as cartas)
+    '<div style="position:absolute; top: 36px; left: 0; right: 0; text-align:center; z-index: 2;">'
     '<div style="font-size: 30px; font-weight: 800; color: #ffffff;">Maiores Saídas por Produto</div>'
     '</div>'
 )
-
 for i_card in range(6):
     produto_txt = _esc(cards[i_card]["produto"])
     saida_txt = _esc(cards[i_card]["saida"])
