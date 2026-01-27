@@ -123,7 +123,3 @@ for c in [entrada_col, saida_col]:
 if data_col:
     work_df[data_col] = pd.to_datetime(work_df[data_col], errors="coerce")
 
-st.subheader("Totais")
-col1, col2 = st.columns(2)
-col1.metric("Total Entrada", float(work_df[entrada_col].fillna(0).sum()))
-col2.metric("Total Saída", float(work_df[saida_col].fillna(0).sum()))
