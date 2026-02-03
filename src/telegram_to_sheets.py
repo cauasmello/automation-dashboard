@@ -9,6 +9,16 @@ from telethon.sessions import StringSession
 import gspread
 from google.oauth2.service_account import Credentials
 
+# --- Julius: non-interactive Telegram auth helper ---
+def julius_start_telegram_client(client_obj):
+    """Start Telethon client without prompting for input() (safe for CI/pipelines)."""
+    bot_token_val = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+    if bot_token_val:
+        return client_obj.start(bot_token=bot_token_val)
+    raise RuntimeError("Missing TELEGRAM_BOT_TOKEN. Configure it in GitHub Actions Secrets.")
+# --- /Julius helper ---
+
+
 
 def _get_required(name):
     val = os.getenv(name)
@@ -227,6 +237,14 @@ async def main():
     state_data = load_state(state_file)
     last_id = int(state_data.get("last_id", 0))
     print("last_id carregado:", last_id)
+
+    # Ensure bot auth is active before entering async context (avoids input() in CI)
+    try:
+        bot_token_val = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+        if bot_token_val:
+            client = client.start(bot_token=bot_token_val)
+    except Exception:
+        pass
 
     async with client:
         channel = os.getenv("CHANNEL", "").strip()
