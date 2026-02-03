@@ -26,13 +26,28 @@ df_raw = pd.read_parquet(PARQUET_FILE)
 # Tenta padronizar nomes (tolerante a ordem/acentos)
 col_map = {c.lower().strip(): c for c in df_raw.columns}
 
-entrada_col = col_map.get("entrada")
-saida_col = col_map.get("saída") or col_map.get("saida")
-data_col = col_map.get("data")
+tipo_col  = col_map.get("tipo")
+valor_col = col_map.get("valor")
+data_col  = col_map.get("data") or col_map.get("data/hora da exportação")
 
-if not entrada_col or not saida_col:
-    st.info("Não encontrei colunas Entrada/Saída. Colunas disponíveis: " + ", ".join(df_raw.columns))
+if not tipo_col or not valor_col:
+    st.info("Não encontrei colunas Tipo/Valor. Colunas disponíveis: " + ", ".join(df_raw.columns))
     st.stop()
+
+df = df_raw.copy()
+df[valor_col] = pd.to_numeric(df[valor_col], errors="coerce")
+df = df.dropna(subset=[valor_col])
+
+# Se tiver Data, normaliza como date
+if data_col:
+    df[data_col] = pd.to_datetime(df[data_col], errors="coerce").dt.date
+
+# Separa entradas e saídas
+df_entrada = df[df[tipo_col].str.lower() == "entrada"]
+df_saida   = df[df[tipo_col].str.lower() == "saída"]
+
+total_entrada = df_entrada[valor_col].sum()
+total_saida   = df_saida[valor_col].sum()
 
 
 
