@@ -209,11 +209,11 @@ def write_payload_row(ws, col_idx_map, payload, data_envio):
         ws.update_cell(row_idx, col_idx_map["Forma de Pagamento"], forma_val)
 
     data_val = payload.get("Data")
-data_norm = normalize_date_str(data_val)
-if data_norm.strip() == "":
-    data_norm = str(data_envio).split(" ")[0] if data_envio else ""
-if "Data" in col_idx_map:
-    ws.update_cell(row_idx, col_idx_map["Data"], str(data_norm).strip())
+    data_norm = normalize_date_str(data_val)
+    if data_norm.strip() == "":
+        data_norm = str(data_envio).split(" ")[0] if data_envio else ""
+    if "Data" in col_idx_map:
+        ws.update_cell(row_idx, col_idx_map["Data"], str(data_norm).strip())
 
 
 def connect_worksheet(sheet_id, worksheet_name, service_account_json):
