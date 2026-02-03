@@ -41,9 +41,9 @@ df = df_raw.copy()
 df[valor_col] = pd.to_numeric(df[valor_col], errors="coerce")
 df = df.dropna(subset=[valor_col])
 
-# Se tiver Data, normaliza como date
+# Se tiver Data, normaliza como date-only (mantém datetime64[ns])
 if data_col:
-    df[data_col] = pd.to_datetime(df[data_col], errors="coerce").dt.date
+    df[data_col] = pd.to_datetime(df[data_col], errors="coerce").dt.floor("D")
 
 # Separa entradas e saídas
 df_entrada = df[df[tipo_col].str.lower() == "entrada"]
@@ -109,12 +109,12 @@ if len(selected_rows) == 1:
         '</div>'
         '<div style="position:absolute; inset: 0; display:flex; align-items:center; justify-content:center;">'
         '<div style="text-align:center; font-size: 20px; color:#111827; font-weight:600; line-height: 1.9; padding: 0 26px;">'
-        + 'Tipo: ;' + tipo_txt + ';<br>'
-        + 'Valor: ;' + valor_txt + ';<br>'
-        + 'Descrição: ;' + descricao_txt + ';<br>'
-        + 'Cliente: ;' + cliente_txt + ';<br>'
-        + 'Forma de Pagamento: ;' + forma_pagamento_txt + ';<br>'
-        + 'Data: ;' + data_txt + ';'
+        + 'Tipo: ' + tipo_txt + '<br>'
+        + 'Valor: ' + valor_txt + '<br>'
+        + 'Descrição: ' + descricao_txt + '<br>'
+        + 'Cliente: ' + cliente_txt + '<br>'
+        + 'Forma de Pagamento: ' + forma_pagamento_txt + '<br>'
+        + 'Data: ' + data_txt + '<br>'
         + '</div>'
         '</div>'
         '</div>'
