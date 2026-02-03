@@ -59,6 +59,19 @@ def main():
 
     df = pd.DataFrame(rows, columns=header)
 
+    # Julius: normalize columns for analytics
+    # Valor: accept comma decimals; Data: parse ISO/date strings
+    col_map = {c.lower().strip(): c for c in df.columns}
+    valor_col = col_map.get("valor")
+    data_col = col_map.get("data")
+    if valor_col:
+        df[valor_col] = (df[valor_col].astype(str)
+                        .str.replace(".", "", regex=False)
+                        .str.replace(",", ".", regex=False))
+        df[valor_col] = pd.to_numeric(df[valor_col], errors="coerce")
+    if data_col:
+        df[data_col] = pd.to_datetime(df[data_col], errors="coerce").dt.date
+
     exported_at = pd.Timestamp.now(tz="America/Sao_Paulo")
     df["Data/Hora da Exportação"] = exported_at
 

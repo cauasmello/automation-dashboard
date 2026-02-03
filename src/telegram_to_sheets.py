@@ -53,82 +53,77 @@ def parse_tipo_e_texto(raw_text):
     return tipo, conteudo
 
 def parse_telegram_payload(raw_text):
-    # Parses messages like:
-    # Entrada: "Bom dia"\nSaída: "Boa noite"\nTipoDespesa: "Saudação"\nTipoProduto: "Respeito"
-    # Quotes are optional; Saída can be Saida; Tipo Produto/TipoDespesa variations are accepted.
+    # Parses messages like (multiline or single-line):
+    # Tipo: String
+    # Valor: Decimal
+    # Descrição: String
+    # Cliente: String
+    # Forma de Pagamento: String
+    #
+    # Accepts separators ':' or '=' and ignores surrounding quotes.
     if raw_text is None:
         return None
+
     text_val = str(raw_text).strip()
     if text_val == "":
         return None
 
     field_aliases = {
-        "entrada": "Entrada",
-        "saida": "Saida",
-        "saída": "Saida",
-        "tipodespesa": "TipoDespesa",
-        "tipo despesa": "TipoDespesa",
-        "tipoproduto": "TipoProduto",
-        "tipo produto": "TipoProduto",
+        "tipo": "Tipo",
+        "valor": "Valor",
+        "descrição": "Descrição",
+        "descricao": "Descrição",
+        "cliente": "Cliente",
+        "forma de pagamento": "Forma de Pagamento",
+        "forma_pagamento": "Forma de Pagamento",
+        "forma": "Forma de Pagamento",
+        "pagamento": "Forma de Pagamento",
+        "data": "Data",
     }
 
-    out = {"Entrada": None, "Saida": None, "TipoDespesa": None, "TipoProduto": None}
+    out = {
+        "Tipo": None,
+        "Valor": None,
+        "Descrição": None,
+        "Cliente": None,
+        "Forma de Pagamento": None,
+        "Data": None,
+    }
 
     parts = []
-    for chunk in re.split(r"[\n\r]+", text_val):
+    for chunk in re.split(r"[]+", text_val):
         chunk2 = chunk.strip()
         if chunk2 != "":
             parts.append(chunk2)
 
-    # Support single-line messages separated by ; or ,
-    if len(parts) == 1 and (";" in parts[0] or "," in parts[0]):
-        more_parts = []
-        for chunk in re.split(r"[;,]+", parts[0]):
-            chunk2 = chunk.strip()
-            if chunk2 != "":
-                more_parts.append(chunk2)
-        parts = more_parts
+    if len(parts) == 1 and ";" in parts[0]:
+        parts = [p.strip() for p in parts[0].split(";") if p.strip()]
 
-    kv_re = re.compile(r"^\s*([^:]{2,40})\s*:\s*(.*?)\s*$")
-
-    for ln in parts:
-        m = kv_re.match(ln)
+    for part in parts:
+        m = re.match(r"^\s*([^:=]+?)\s*[:=]\s*(.*)\s*$", part)
         if not m:
             continue
-        k_raw = m.group(1).strip().lower()
-        v_raw = m.group(2).strip()
 
-        if len(v_raw) >= 2:
-            if (v_raw[0] == '\"' and v_raw[-1] == '\"') or (v_raw[0] == "'" and v_raw[-1] == "'"):
-                v_raw = v_raw[1:-1].strip()
+        key_raw = m.group(1).strip().lower()
+        val_raw = m.group(2).strip()
+        val_raw = val_raw.strip('"').strip("'")
 
-        k_norm = (
-            k_raw
-            .replace("á", "a").replace("ã", "a").replace("â", "a").replace("à", "a")
-            .replace("é", "e").replace("ê", "e")
-            .replace("í", "i")
-            .replace("ó", "o").replace("ô", "o")
-            .replace("ú", "u")
-        )
-        k_norm = re.sub(r"\s+", " ", k_norm).strip()
+        key_norm = re.sub(r"\s+", " ", key_raw)
+        if key_norm in field_aliases:
+            out[field_aliases[key_norm]] = val_raw
 
-        if k_norm in field_aliases:
-            out[field_aliases[k_norm]] = v_raw
+    # Normalize Tipo values
+    if out.get("Tipo"):
+        tipo_norm = str(out.get("Tipo")).strip().lower()
+        if tipo_norm in ["entrada", "in", "receita", "+"]:
+            out["Tipo"] = "Entrada"
+        elif tipo_norm in ["saída", "saida", "out", "despesa", "-"]:
+            out["Tipo"] = "Saída"
 
-    # Fallback: old single-field format
-    if all(out[k] is None for k in out):
-        tipo, conteudo = parse_tipo_e_texto(text_val)
-        if tipo == "entrada" and conteudo is not None:
-            out["Entrada"] = conteudo
-        if tipo == "saida" and conteudo is not None:
-            out["Saida"] = conteudo
-
-    if all(out[k] is None for k in out):
+    if not out.get("Tipo") and not out.get("Valor"):
         return None
 
     return out
-
-
 def load_state(state_file):
     try:
         with open(state_file, "r", encoding="utf-8") as state_f:
@@ -270,6 +265,13 @@ async def main():
 
             payload = parse_telegram_payload(texto_bruto)
 
+            data_str = payload.get("Data")
+            if not data_str:
+                data_str = msg.date.date().isoformat() if msg.date else ""
+            else:
+                data_str = str(data_str).strip()
+            row_data = [payload.get("Tipo"), payload.get("Valor"), payload.get("Descrição"), payload.get("Cliente"), payload.get("Forma de Pagamento"), data_str]
+
             if payload is None:
 
                 max_seen_id = max(max_seen_id, msg.id)
@@ -278,7 +280,7 @@ async def main():
 
             data_envio = msg.date.astimezone().strftime("%Y-%m-%d %H:%M:%S")
 
-            required_headers = ["Entrada", "Saida", "Data", "TipoDespesa", "TipoProduto"]
+            required_headers = ["Tipo", "Valor", "Descrição", "Cliente", "Forma de Pagamento", "Data"]
 
             col_idx_map = ensure_headers(ws, required_headers)
 
