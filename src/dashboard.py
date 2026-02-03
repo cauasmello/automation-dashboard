@@ -39,7 +39,7 @@ if not tipo_col or not valor_col:
 
 df = df_raw.copy()
 # Remove coluna de exportação (se existir) para nunca aparecer na tabela
-_drop_export_cols = [c for c in df.columns if c.lower().strip() in ["data/hora da exportação", "data/hora da exportacao", "data/hora exportação", "data/hora exportacao"]]
+_drop_export_cols = [c for c in df.columns if c.lower().strip() in ["data/hora da exportação", "data/hora da exportacao", "data/hora exportação", "data/hora exportacao", "Data/Hora da Exportação", "Data/Hora da Exportacao", "Data/Hora Exportação", "Data/Hora Exportacao"]]
 if _drop_export_cols:
     df = df.drop(columns=_drop_export_cols)
 
@@ -114,7 +114,7 @@ if len(selected_rows) == 1:
         '<div style="position:absolute; inset: 0; display:flex; align-items:center; justify-content:center;">'
         '<div style="text-align:center; font-size: 20px; color:#111827; font-weight:600; line-height: 1.9; padding: 0 26px;">'
         + 'Tipo: ' + tipo_txt + '<br>'
-        + 'Valor: ' + valor_txt + '<br>'
+        + 'Valor: R$:' + valor_txt + '<br>'
         + 'Descrição: ' + descricao_txt + '<br>'
         + 'Cliente: ' + cliente_txt + '<br>'
         + 'Forma de Pagamento: ' + forma_pagamento_txt + '<br>'
