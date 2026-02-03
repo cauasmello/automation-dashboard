@@ -208,11 +208,14 @@ async def main():
 
     telethon_session = os.getenv("TELETHON_SESSION", "").strip()
 
+    bot_token_val = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+
     if telethon_session:
         client = TelegramClient(StringSession(telethon_session), api_id, api_hash)
     else:
-        # Fallback local only. In GitHub Actions this will usually fail because it needs interactive login.
-        client = TelegramClient("session", api_id, api_hash)
+        if not bot_token_val:
+            raise RuntimeError("Missing TELEGRAM_BOT_TOKEN. Configure it in GitHub Actions Secrets.")
+        client = TelegramClient("bot_session", api_id, api_hash).start(bot_token=bot_token_val)
 
     print("Iniciando...")
     print("STATE_FILE:", str(state_file))
