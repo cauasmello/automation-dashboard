@@ -45,10 +45,36 @@ if missing:
     st.stop()
 
 
+# --- Julius: new model (Tipo has values Entrada/Saída) ---
+df = df_raw.copy()
+df[valor_col] = pd.to_numeric(df[valor_col], errors="coerce")
+if data_col:
+    df[data_col] = pd.to_datetime(df[data_col], errors="coerce").dt.date
+df[tipo_col] = df[tipo_col].astype(str).str.strip()
+
+df_entrada = df[df[tipo_col].str.lower() == "entrada"]
+df_saida = df[df[tipo_col].str.lower().isin(["saída", "saida"]) ]
+
+st.subheader("Resumo")
+c1, c2, c3 = st.columns(3)
+c1.metric("Registros", int(df.shape[0]))
+c2.metric("Total Entrada", float(df_entrada[valor_col].sum(skipna=True)))
+c3.metric("Total Saída", float(df_saida[valor_col].sum(skipna=True)))
+
+st.subheader("Total por Tipo")
+totais = df.groupby(tipo_col, dropna=False)[valor_col].sum().sort_values(ascending=False)
+st.bar_chart(totais)
+
+if data_col:
+    st.subheader("Evolução (dia)")
+    by_day = df.dropna(subset=[data_col]).groupby(data_col)[valor_col].sum()
+    st.line_chart(by_day)
+
+
 # Normaliza tipos
 _df = df_raw.copy()
 _df[valor_col] = pd.to_numeric(_df[valor_col], errors="coerce")
-_df[data_col] = pd.to_datetime(_df[data_col], errors="coerce").dt.date
+_df[data_col] = pd.to_datetime(_df[data_col], errors="coerce")
 
 # Sidebar filters
 st.sidebar.header("Filtros")
@@ -72,26 +98,20 @@ col1.metric("Registros", int(_df2.shape[0]))
 col2.metric("Total Valor", float(_df2[valor_col].sum(skipna=True)))
 col3.metric("Média Valor", float(_df2[valor_col].mean(skipna=True)) if _df2.shape[0] else 0.0)
 
-st.subheader("Entrada vs Saída")
-by_tipo_simple = (_df2.groupby(tipo_col, dropna=False)[valor_col].sum())
-if "Entrada" in by_tipo_simple.index and "Saída" in by_tipo_simple.index:
-    st.write({"Entrada": float(by_tipo_simple.get("Entrada")), "Saída": float(by_tipo_simple.get("Saída"))})
-
 st.subheader("Total por Tipo")
 by_tipo = (_df2.groupby(tipo_col, dropna=False)[valor_col].sum().sort_values(ascending=False))
 st.bar_chart(by_tipo)
 
 st.subheader("Evolução no tempo")
 _df2_time = _df2.dropna(subset=[data_col]).sort_values(data_col)
-by_day = _df2_time.groupby(data_col)[valor_col].sum()
+_df2_time["data_dia"] = _df2_time[data_col].dt.date
+by_day = _df2_time.groupby("data_dia")[valor_col].sum()
 st.line_chart(by_day)
 
 st.subheader("Tabela")
 show_cols = [c for c in [data_col, tipo_col, valor_col, descricao_col, cliente_col, forma_col] if c]
 st.dataframe(_df2[show_cols].sort_values(data_col, ascending=False), use_container_width=True)
 st.stop()
-
-
 
 st.subheader("Selecione uma linha")
 preview_df = df_raw.head(200).copy()
@@ -128,12 +148,37 @@ def _escape_html(txt_val):
 if len(selected_rows) == 1:
     sel_row = preview_df.iloc[int(selected_rows[0])]
 
+# --- Detalhes da linha selecionada (novo modelo) ---
+try:
+    tipo_txt = _escape_html(_val_or_blank(sel_row, tipo_col)) if "tipo_col" in globals() and tipo_col else ""
+    valor_txt = _escape_html(_val_or_blank(sel_row, valor_col)) if "valor_col" in globals() and valor_col else ""
+    data_txt = ""
+    if "data_col" in globals() and data_col:
+        data_txt = _escape_html(_val_or_blank(sel_row, data_col))
+    desc_txt = _escape_html(_val_or_blank(sel_row, col_map.get("descrição"))) if col_map.get("descrição") else ""
+    cli_txt = _escape_html(_val_or_blank(sel_row, col_map.get("cliente"))) if col_map.get("cliente") else ""
+    forma_txt = _escape_html(_val_or_blank(sel_row, col_map.get("forma de pagamento"))) if col_map.get("forma de pagamento") else ""
+
+    st.markdown("""
+    <div style="padding:12px;border:1px solid #E5E7EB;border-radius:10px;background:#FFFFFF">
+      <div style="font-size:16px;font-weight:600;color:#171717;margin-bottom:8px">Detalhes</div>
+      <div style="color:#171717"><b>Data</b> {data_txt}</div>
+      <div style="color:#171717"><b>Tipo</b> {tipo_txt}</div>
+      <div style="color:#171717"><b>Valor</b> {valor_txt}</div>
+      <div style="color:#171717"><b>Cliente</b> {cli_txt}</div>
+      <div style="color:#171717"><b>Forma</b> {forma_txt}</div>
+      <div style="color:#171717"><b>Descrição</b> {desc_txt}</div>
+    </div>
+    """.format(data_txt=data_txt, tipo_txt=tipo_txt, valor_txt=valor_txt, cli_txt=cli_txt, forma_txt=forma_txt, desc_txt=desc_txt), unsafe_allow_html=True)
+except Exception:
+    pass
+
     # Mapeia também TipoDespesa e TipoProduto (se existirem no parquet)
     tipo_despesa_col = col_map.get("tipodespesa") or col_map.get("tipo despesa")
     tipo_produto_col = col_map.get("tipoproduto") or col_map.get("tipo produto")
 
-    saida_txt = _escape_html(_val_or_blank(sel_row, saida_col))
-    entrada_txt = _escape_html(_val_or_blank(sel_row, entrada_col))
+    saida_txt = _escape_html(_val_or_blank(sel_row, tipo_col))
+    entrada_txt = _escape_html(_val_or_blank(sel_row, tipo_col))
     tipo_despesa_txt = _escape_html(_val_or_blank(sel_row, tipo_despesa_col))
     tipo_produto_txt = _escape_html(_val_or_blank(sel_row, tipo_produto_col))
     data_txt = _escape_html(_val_or_blank(sel_row, data_col))
@@ -168,7 +213,7 @@ else:
 
 # Normaliza valores para numérico
 work_df = df_raw.copy()
-for c in [entrada_col, saida_col]:
+for c in [tipo_col, tipo_col]:
     work_df[c] = (
         work_df[c]
         .astype(str)
@@ -179,102 +224,3 @@ for c in [entrada_col, saida_col]:
 
 if data_col:
     work_df[data_col] = pd.to_datetime(work_df[data_col], errors="coerce")
-
-
-# Top 6 Saídas mais caras (mesa de pôquer)
-st.subheader("Maiores Saídas por Produto")
-
-produto_col = (
-    col_map.get("produto")
-    or col_map.get("tipo produto")
-    or col_map.get("tipoproduto")
-    or col_map.get("descricao")
-    or col_map.get("descrição")
-)
-
-top_src = work_df.copy()
-if produto_col is None:
-    top_src["__produto__"] = "(sem produto)"
-    produto_col = "__produto__"
-
-top_src["__saida_num__"] = pd.to_numeric(top_src[saida_col], errors="coerce")
-top6 = (
-    top_src[[produto_col, "__saida_num__"]]
-    .dropna(subset=["__saida_num__"])
-    .sort_values("__saida_num__", ascending=False)
-    .head(6)
-)
-
-def _fmt_brl(vv):
-    try:
-        if pd.isna(vv):
-            return ""
-        s = ("{:\,.2f}".format(float(vv))).replace(",", "X").replace(".", ",").replace("X", ".")
-        return "R$ " + s
-    except Exception:
-        return str(vv)
-
-cards = []
-for _, rr in top6.iterrows():
-    prod_txt = str(rr[produto_col])
-    saida_txt = _fmt_brl(rr["__saida_num__"])
-    cards.append({"produto": prod_txt, "saida": saida_txt})
-
-while len(cards) < 6:
-    cards.append({"produto": "", "saida": ""})
-
-def _esc(txt_val):
-    if txt_val is None:
-        return ""
-    return str(txt_val).replace('&','&amp;').replace('<','&lt;').replace('>','&gt;')
-
-pos = [
-    # topo (sempre abaixo do título)
-    {"top": "22%", "left": "20%", "rot": "-12deg"},
-    {"top": "22%", "left": "66%", "rot": "10deg"},
-
-    # laterais
-    {"top": "44%", "left": "76%", "rot": "16deg"},
-    {"top": "64%", "left": "60%", "rot": "10deg"},
-
-    # base
-    {"top": "72%", "left": "40%", "rot": "0deg"},
-    {"top": "64%", "left": "18%", "rot": "-14deg"},
-]
-
-table_html = (
-    '<div style="width: 100%; display:flex; justify-content:center; margin: 5px 0 12px 0;">'
-    '<div style="position:relative; width: 100%; max-width: 1100px; height: 620px;">'
-
-    # Moldura externa (preto/azul escuro)
-    '<div style="position:absolute; inset: 0; background: #0B1220; border-radius: 28px;"></div>'
-
-    # Borda vermelha
-    '<div style="position:absolute; inset: 30px; background: #7f1d1d; border-radius: 320px;"></div>'
-
-    # Feltro verde (mesa)
-    '<div style="position:absolute; inset: 52px; background: #166534; border-radius: 320px;"></div>'
-
-    # Título (mais alto para não conflitar com as cartas)
-    '<div style="position:absolute; top: 36px; left: 0; right: 0; text-align:center; z-index: 2;">'
-    '<div style="font-size: 30px; font-weight: 800; color: #ffffff;">Maiores Saídas por Produto</div>'
-    '</div>'
-)
-for i_card in range(6):
-    produto_txt = _esc(cards[i_card]["produto"])
-    saida_txt = _esc(cards[i_card]["saida"])
-    p = pos[i_card]
-    table_html += (
-        '<div style="position:absolute; top:' + p["top"] + '; left:' + p["left"] + ';'
-        ' width: 150px; height: 220px; transform: rotate(' + p["rot"] + ');'
-        ' background:#b91c1c; border: 4px solid #f3f4f6; border-radius: 16px; box-shadow: 0 10px 24px rgba(0,0,0,0.30);">'
-        '<div style="position:absolute; inset: 0; display:flex; align-items:center; justify-content:center; padding: 14px;">'
-        '<div style="text-align:center; color:#ffffff; font-weight:700; font-size: 14px; line-height: 1.6;">'
-        + 'Produto: &quot;' + produto_txt + '&quot;<br>'
-        + 'Saída: &quot;' + saida_txt + '&quot;'
-        + '</div></div></div>'
-    )
-
-table_html += '</div></div>'
-st.markdown(table_html, unsafe_allow_html=True)
-
