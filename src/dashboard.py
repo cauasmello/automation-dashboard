@@ -38,18 +38,20 @@ if not tipo_col or not valor_col:
     st.stop()
 
 df = df_raw.copy()
+# Remove coluna de exportação (se existir) para nunca aparecer na tabela
+_drop_export_cols = [c for c in df.columns if c.lower().strip() in ["data/hora da exportação", "data/hora da exportacao", "data/hora exportação", "data/hora exportacao"]]
+if _drop_export_cols:
+    df = df.drop(columns=_drop_export_cols)
+
 df[valor_col] = pd.to_numeric(df[valor_col], errors="coerce")
 df = df.dropna(subset=[valor_col])
-# Se tiver Data, normaliza como date-only string YYYY-MM-DD
-
+#Se tiver Data, assumimos que vem como date (YYYY-MM-DD). Só limpamos strings e vazios
 if data_col:
-
     df[data_col] = df[data_col].astype(str).str.strip()
-
     df.loc[df[data_col].isin(["", "None", "nan", "NaT"]), data_col] = None
-    df[data_col] = df[data_col].astype(str).str.strip()
 
 # Separa entradas e saídas
+
 df_entrada = df[df[tipo_col].str.lower() == "entrada"]
 df_saida   = df[df[tipo_col].str.lower() == "saída"]
 
