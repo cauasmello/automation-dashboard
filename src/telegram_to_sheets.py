@@ -78,7 +78,6 @@ def parse_telegram_payload(raw_text):
         "forma_pagamento": "Forma de Pagamento",
         "forma": "Forma de Pagamento",
         "pagamento": "Forma de Pagamento",
-        "data": "Data",
     }
 
     out = {
@@ -87,11 +86,10 @@ def parse_telegram_payload(raw_text):
         "Descrição": None,
         "Cliente": None,
         "Forma de Pagamento": None,
-        "Data": None,
     }
 
     parts = []
-    for chunk in re.split(r"[\\n\\r]+", text_val):
+    for chunk in re.split(r"[\n\r]+", text_val):
         chunk2 = chunk.strip()
         if chunk2 != "":
             parts.append(chunk2)
@@ -111,14 +109,6 @@ def parse_telegram_payload(raw_text):
         key_norm = re.sub(r"\s+", " ", key_raw)
         if key_norm in field_aliases:
             out[field_aliases[key_norm]] = val_raw
-
-    # Normalize Tipo values
-    if out.get("Tipo"):
-        tipo_norm = str(out.get("Tipo")).strip().lower()
-        if tipo_norm in ["entrada", "in", "receita", "+"]:
-            out["Tipo"] = "Entrada"
-        elif tipo_norm in ["saída", "saida", "out", "despesa", "-"]:
-            out["Tipo"] = "Saída"
 
     if not out.get("Tipo") and not out.get("Valor"):
         return None
@@ -164,21 +154,37 @@ def first_empty_row(ws, key_col_idx):
 
 def write_payload_row(ws, col_idx_map, payload, data_envio):
     # Writes a complete row using the column map.
+    # Data: if payload has Data use it else use data_envio (date-only)
     row_idx = first_empty_row(ws, col_idx_map.get("Data", 1))
 
-    if payload.get("Entrada") is not None:
-        ws.update_cell(row_idx, col_idx_map["Entrada"], payload.get("Entrada"))
+    tipo_val = payload.get("Tipo")
+    valor_val = payload.get("Valor")
+    desc_val = payload.get("Descrição")
+    cli_val = payload.get("Cliente")
+    forma_val = payload.get("Forma de Pagamento")
 
-    if payload.get("Saida") is not None:
-        ws.update_cell(row_idx, col_idx_map["Saida"], payload.get("Saida"))
+    if tipo_val is not None and "Tipo" in col_idx_map:
+        ws.update_cell(row_idx, col_idx_map["Tipo"], tipo_val)
 
-    ws.update_cell(row_idx, col_idx_map["Data"], data_envio)
+    if valor_val is not None and "Valor" in col_idx_map:
+        ws.update_cell(row_idx, col_idx_map["Valor"], valor_val)
 
-    if "TipoDespesa" in col_idx_map and payload.get("TipoDespesa") is not None:
-        ws.update_cell(row_idx, col_idx_map["TipoDespesa"], payload.get("TipoDespesa"))
+    if desc_val is not None and "Descrição" in col_idx_map:
+        ws.update_cell(row_idx, col_idx_map["Descrição"], desc_val)
 
-    if "TipoProduto" in col_idx_map and payload.get("TipoProduto") is not None:
-        ws.update_cell(row_idx, col_idx_map["TipoProduto"], payload.get("TipoProduto"))
+    if cli_val is not None and "Cliente" in col_idx_map:
+        ws.update_cell(row_idx, col_idx_map["Cliente"], cli_val)
+
+    if forma_val is not None and "Forma de Pagamento" in col_idx_map:
+        ws.update_cell(row_idx, col_idx_map["Forma de Pagamento"], forma_val)
+
+    data_val = payload.get("Data")
+    if data_val is None or str(data_val).strip() == "":
+        # data_envio comes like YYYY-MM-DD HH:MM:SS; keep only date
+        data_val = str(data_envio).split(" ")[0] if data_envio else ""
+    if "Data" in col_idx_map:
+        ws.update_cell(row_idx, col_idx_map["Data"], str(data_val).strip())
+
 
 def connect_worksheet(sheet_id, worksheet_name, service_account_json):
     scopes = [
@@ -265,12 +271,7 @@ async def main():
 
             payload = parse_telegram_payload(texto_bruto)
 
-            data_str = payload.get("Data")
-            if not data_str:
-                data_str = msg.date.date().isoformat() if msg.date else ""
-            else:
-                data_str = str(data_str).strip()
-            row_data = [payload.get("Tipo"), payload.get("Valor"), payload.get("Descrição"), payload.get("Cliente"), payload.get("Forma de Pagamento"), data_str]
+            row_data = [payload.get("Tipo"), payload.get("Valor"), payload.get("Descrição"), payload.get("Cliente"), payload.get("Forma de Pagamento"), msg.date.isoformat() if msg.date else ""]
 
             if payload is None:
 
