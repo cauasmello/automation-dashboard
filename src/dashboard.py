@@ -31,7 +31,7 @@ valor_col = col_map.get("valor")
 descricao_col  = col_map.get("descrição")
 cliente_col = col_map.get("cliente")
 forma_pagamento_col = col_map.get("forma de pagamento")
-data_col  = col_map.get("data") or col_map.get("data/hora da exportação")
+data_col  = col_map.get("data")
 
 if not tipo_col or not valor_col:
     st.info("Não encontrei colunas Tipo/Valor. Colunas disponíveis: " + ", ".join(df_raw.columns))
@@ -52,13 +52,11 @@ df_saida   = df[df[tipo_col].str.lower() == "saída"]
 total_entrada = df_entrada[valor_col].sum()
 total_saida   = df_saida[valor_col].sum()
 
-
-
 st.subheader("Selecione uma linha")
 preview_df = df_raw.head(200).copy()
 preview_event = st.dataframe(
     preview_df,
-    use_container_width=True,
+    width='stretch',
     hide_index=True,
     selection_mode="single-row",
     on_select="rerun",
