@@ -90,8 +90,8 @@ if len(selected_rows) == 1:
     tipo_despesa_col = col_map.get("tipodespesa") or col_map.get("tipo despesa")
     tipo_produto_col = col_map.get("tipoproduto") or col_map.get("tipo produto")
 
-    saida_txt = _escape_html(_val_or_blank(sel_row, saida_col))
-    entrada_txt = _escape_html(_val_or_blank(sel_row, entrada_col))
+    tipo_txt = _escape_html(_val_or_blank(sel_row, tipo_col))
+    valor_txt = _escape_html(_val_or_blank(sel_row, valor_col))
     tipo_despesa_txt = _escape_html(_val_or_blank(sel_row, tipo_despesa_col))
     tipo_produto_txt = _escape_html(_val_or_blank(sel_row, tipo_produto_col))
     data_txt = _escape_html(_val_or_blank(sel_row, data_col))
@@ -126,113 +126,23 @@ else:
 
 # Normaliza valores para numérico
 work_df = df_raw.copy()
-for c in [entrada_col, saida_col]:
-    work_df[c] = (
-        work_df[c]
-        .astype(str)
-        .str.replace(".", "", regex=False)
-        .str.replace(",", ".", regex=False)
-    )
-    work_df[c] = pd.to_numeric(work_df[c], errors="coerce")
+work_df[valor_col] = (
+    work_df[valor_col]
+    .astype(str)
+    .str.replace(".", "", regex=False)
+    .str.replace(",", ".", regex=False)
+)
+work_df[valor_col] = pd.to_numeric(work_df[valor_col], errors="coerce")
 
 if data_col:
     work_df[data_col] = pd.to_datetime(work_df[data_col], errors="coerce")
 
 
-# Top 6 Saídas mais caras (mesa de pôquer)
-st.subheader("Maiores Saídas por Produto")
+work_df[tipo_col] = work_df[tipo_col].astype(str).str.strip()
 
-produto_col = (
-    col_map.get("produto")
-    or col_map.get("tipo produto")
-    or col_map.get("tipoproduto")
-    or col_map.get("descricao")
-    or col_map.get("descrição")
-)
+entrada_df = work_df[work_df[tipo_col].str.lower() == "entrada"]
+saida_df = work_df[work_df[tipo_col].str.lower().isin(["saída", "saida"])]
 
-top_src = work_df.copy()
-if produto_col is None:
-    top_src["__produto__"] = "(sem produto)"
-    produto_col = "__produto__"
-
-top_src["__saida_num__"] = pd.to_numeric(top_src[saida_col], errors="coerce")
-top6 = (
-    top_src[[produto_col, "__saida_num__"]]
-    .dropna(subset=["__saida_num__"])
-    .sort_values("__saida_num__", ascending=False)
-    .head(6)
-)
-
-def _fmt_brl(vv):
-    try:
-        if pd.isna(vv):
-            return ""
-        s = ("{:\,.2f}".format(float(vv))).replace(",", "X").replace(".", ",").replace("X", ".")
-        return "R$ " + s
-    except Exception:
-        return str(vv)
-
-cards = []
-for _, rr in top6.iterrows():
-    prod_txt = str(rr[produto_col])
-    saida_txt = _fmt_brl(rr["__saida_num__"])
-    cards.append({"produto": prod_txt, "saida": saida_txt})
-
-while len(cards) < 6:
-    cards.append({"produto": "", "saida": ""})
-
-def _esc(txt_val):
-    if txt_val is None:
-        return ""
-    return str(txt_val).replace('&','&amp;').replace('<','&lt;').replace('>','&gt;')
-
-pos = [
-    # topo (sempre abaixo do título)
-    {"top": "22%", "left": "20%", "rot": "-12deg"},
-    {"top": "22%", "left": "66%", "rot": "10deg"},
-
-    # laterais
-    {"top": "44%", "left": "76%", "rot": "16deg"},
-    {"top": "64%", "left": "60%", "rot": "10deg"},
-
-    # base
-    {"top": "72%", "left": "40%", "rot": "0deg"},
-    {"top": "64%", "left": "18%", "rot": "-14deg"},
-]
-
-table_html = (
-    '<div style="width: 100%; display:flex; justify-content:center; margin: 5px 0 12px 0;">'
-    '<div style="position:relative; width: 100%; max-width: 1100px; height: 620px;">'
-
-    # Moldura externa (preto/azul escuro)
-    '<div style="position:absolute; inset: 0; background: #0B1220; border-radius: 28px;"></div>'
-
-    # Borda vermelha
-    '<div style="position:absolute; inset: 30px; background: #7f1d1d; border-radius: 320px;"></div>'
-
-    # Feltro verde (mesa)
-    '<div style="position:absolute; inset: 52px; background: #166534; border-radius: 320px;"></div>'
-
-    # Título (mais alto para não conflitar com as cartas)
-    '<div style="position:absolute; top: 36px; left: 0; right: 0; text-align:center; z-index: 2;">'
-    '<div style="font-size: 30px; font-weight: 800; color: #ffffff;">Maiores Saídas por Produto</div>'
-    '</div>'
-)
-for i_card in range(6):
-    produto_txt = _esc(cards[i_card]["produto"])
-    saida_txt = _esc(cards[i_card]["saida"])
-    p = pos[i_card]
-    table_html += (
-        '<div style="position:absolute; top:' + p["top"] + '; left:' + p["left"] + ';'
-        ' width: 150px; height: 220px; transform: rotate(' + p["rot"] + ');'
-        ' background:#b91c1c; border: 4px solid #f3f4f6; border-radius: 16px; box-shadow: 0 10px 24px rgba(0,0,0,0.30);">'
-        '<div style="position:absolute; inset: 0; display:flex; align-items:center; justify-content:center; padding: 14px;">'
-        '<div style="text-align:center; color:#ffffff; font-weight:700; font-size: 14px; line-height: 1.6;">'
-        + 'Produto: &quot;' + produto_txt + '&quot;<br>'
-        + 'Saída: &quot;' + saida_txt + '&quot;'
-        + '</div></div></div>'
-    )
-
-table_html += '</div></div>'
-st.markdown(table_html, unsafe_allow_html=True)
+total_entrada = entrada_df[valor_col].sum(skipna=True)
+total_saida = saida_df[valor_col].sum(skipna=True)
 
