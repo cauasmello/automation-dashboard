@@ -1,18 +1,11 @@
-## Telegram -> Google Sheets
+## Telegram -> Google Sheets -> Parquet
 
 ### Setup
-1. Crie um virtualenv e instale dependências
-   - python -m venv .venv
-   - .\.venv\Scripts\Activate.ps1
-   - python -m pip install -r requirements.txt
-
-2. Google Sheets (Service Account)
-   - Coloque o arquivo em: credentials/service_account.json
-   - Compartilhe a planilha com o e-mail da service account (Editor)
-
-3. Telegram (Telethon)
-   - Rode o script e faça login com seu telefone quando pedir
-   - O arquivo de sessão (*.session) será criado localmente (não vai pro Git)
+1. Exportar mensagens enviadas no telegram e preencher planilha;
+2. Exportar planilha e transformar em arquivo .parquet;
+3. Criar Dashboard em cima do .parquet.
 
 ### Rodar
 - python .\src\telegram_to_sheets.py
+- python .\src\export_to_parquet.py
+- python .dashboard.py
