@@ -91,7 +91,7 @@ def parse_telegram_payload(raw_text):
     }
 
     parts = []
-    for chunk in re.split(r"[]+", text_val):
+    for chunk in re.split(r"[\\n\\r]+", text_val):
         chunk2 = chunk.strip()
         if chunk2 != "":
             parts.append(chunk2)
