@@ -152,6 +152,36 @@ def first_empty_row(ws, key_col_idx):
     return len(col_vals) + 1
 
 
+def normalize_date_str(date_in):
+    # Normalize user-provided date to YYYY-MM-DD.
+    # Accepts YYYY-MM-DD, YYYY/MM/DD, DD/MM/YYYY, DD-MM-YYYY.
+    if date_in is None:
+        return ""
+    s = str(date_in).strip()
+    if not s:
+        return ""
+
+    s = s.replace(".", "-").replace("/", "-")
+    parts = [p for p in s.split("-") if p]
+    if len(parts) != 3:
+        return s
+
+    # If first part has 4 digits assume YYYY-MM-DD
+    if len(parts[0]) == 4:
+        yyyy = parts[0]
+        mm = parts[1].zfill(2)
+        dd = parts[2].zfill(2)
+        return yyyy + "-" + mm + "-" + dd
+
+    # Else assume DD-MM-YYYY
+    dd = parts[0].zfill(2)
+    mm = parts[1].zfill(2)
+    yyyy = parts[2]
+    if len(yyyy) == 2:
+        yyyy = "20" + yyyy
+    return yyyy + "-" + mm + "-" + dd
+
+
 def write_payload_row(ws, col_idx_map, payload, data_envio):
     # Writes a complete row using the column map.
     # Data: if payload has Data use it else use data_envio (date-only)
@@ -179,11 +209,11 @@ def write_payload_row(ws, col_idx_map, payload, data_envio):
         ws.update_cell(row_idx, col_idx_map["Forma de Pagamento"], forma_val)
 
     data_val = payload.get("Data")
-    if data_val is None or str(data_val).strip() == "":
-        # data_envio comes like YYYY-MM-DD HH:MM:SS; keep only date
-        data_val = str(data_envio).split(" ")[0] if data_envio else ""
-    if "Data" in col_idx_map:
-        ws.update_cell(row_idx, col_idx_map["Data"], str(data_val).strip())
+data_norm = normalize_date_str(data_val)
+if data_norm.strip() == "":
+    data_norm = str(data_envio).split(" ")[0] if data_envio else ""
+if "Data" in col_idx_map:
+    ws.update_cell(row_idx, col_idx_map["Data"], str(data_norm).strip())
 
 
 def connect_worksheet(sheet_id, worksheet_name, service_account_json):
