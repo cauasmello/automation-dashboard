@@ -28,6 +28,9 @@ col_map = {c.lower().strip(): c for c in df_raw.columns}
 
 tipo_col  = col_map.get("tipo")
 valor_col = col_map.get("valor")
+descricao_col  = col_map.get("descrição")
+cliente_col = col_map.get("cliente")
+forma_pagamento_col = col_map.get("forma de pagamento")
 data_col  = col_map.get("data") or col_map.get("data/hora da exportação")
 
 if not tipo_col or not valor_col:
@@ -86,14 +89,11 @@ def _escape_html(txt_val):
 if len(selected_rows) == 1:
     sel_row = preview_df.iloc[int(selected_rows[0])]
 
-    # Mapeia também TipoDespesa e TipoProduto (se existirem no parquet)
-    tipo_despesa_col = col_map.get("tipodespesa") or col_map.get("tipo despesa")
-    tipo_produto_col = col_map.get("tipoproduto") or col_map.get("tipo produto")
-
     tipo_txt = _escape_html(_val_or_blank(sel_row, tipo_col))
     valor_txt = _escape_html(_val_or_blank(sel_row, valor_col))
-    tipo_despesa_txt = _escape_html(_val_or_blank(sel_row, tipo_despesa_col))
-    tipo_produto_txt = _escape_html(_val_or_blank(sel_row, tipo_produto_col))
+    descricao_txt = _escape_html(_val_or_blank(sel_row, descricao_col))
+    cliente_txt = _escape_html(_val_or_blank(sel_row, cliente_col))
+    forma_pagamento_txt = _escape_html(_val_or_blank(sel_row, forma_pagamento_col))
     data_txt = _escape_html(_val_or_blank(sel_row, data_col))
 
     card_html = (
@@ -109,10 +109,11 @@ if len(selected_rows) == 1:
         '</div>'
         '<div style="position:absolute; inset: 0; display:flex; align-items:center; justify-content:center;">'
         '<div style="text-align:center; font-size: 20px; color:#111827; font-weight:600; line-height: 1.9; padding: 0 26px;">'
-        + 'Saída:&quot;' + tipo_txt + '&quot;<br>'
-        + 'Entrada:&quot;' + valor_txt + '&quot;<br>'
-        + 'TipoDespesa:&quot;' + tipo_despesa_txt + '&quot;<br>'
-        + 'TipoProduto:&quot;' + tipo_produto_txt + '&quot;<br>'
+        + 'Tipo:&quot;' + tipo_txt + '&quot;<br>'
+        + 'Valor:&quot;' + valor_txt + '&quot;<br>'
+        + 'Descrição:&quot;' + descricao_txt + '&quot;<br>'
+        + 'Cliente:&quot;' + cliente_txt + '&quot;<br>'
+        + 'Forma de Pagamento:&quot;' + forma_pagamento_txt + '&quot;<br>'
         + 'Data:&quot;' + data_txt + '&quot;'
         + '</div>'
         '</div>'
