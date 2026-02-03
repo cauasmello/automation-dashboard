@@ -40,10 +40,14 @@ if not tipo_col or not valor_col:
 df = df_raw.copy()
 df[valor_col] = pd.to_numeric(df[valor_col], errors="coerce")
 df = df.dropna(subset=[valor_col])
+# Se tiver Data, normaliza como date-only string YYYY-MM-DD
 
-# Se tiver Data, normaliza como date-only (mantém datetime64[ns])
 if data_col:
-    df[data_col] = pd.to_datetime(df[data_col], errors="coerce").dt.floor("D")
+
+    df[data_col] = df[data_col].astype(str).str.strip()
+
+    df.loc[df[data_col].isin(["", "None", "nan", "NaT"]), data_col] = None
+    df[data_col] = df[data_col].astype(str).str.strip()
 
 # Separa entradas e saídas
 df_entrada = df[df[tipo_col].str.lower() == "entrada"]
