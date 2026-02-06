@@ -66,9 +66,9 @@ if data_col:
         min_date = valid_dates.min()
         max_date = valid_dates.max()
 
-        st.subheader("Filtro")
+        st.subheader("Selecione o Período")
         start_date, end_date = st.date_input(
-            "Intervalo de datas)",
+            "Intervalo entre datas)",
             value=(min_date, max_date),
             min_value=min_date,
             max_value=max_date,
