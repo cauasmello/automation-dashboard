@@ -80,7 +80,7 @@ if data_col:
         )
 
         start_date, end_date = st.date_input(
-            "Intervalo de datas (coluna 'Data')",
+            "Intervalo de datas",
             value=(min_date, max_date),
             min_value=min_date,
             max_value=max_date,
