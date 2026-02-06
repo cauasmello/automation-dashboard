@@ -2,7 +2,7 @@ name: Pipeline (Telegram -> Sheets -> Parquet)
 
 on:
   schedule:
-    - cron: "0 0 * * *" # todo dia meia noite
+    - cron: "0 0 * * *" # todo dia meia noite (UTC)
   workflow_dispatch:        # permite rodar manualmente pelo GitHub
 
 permissions:
@@ -41,6 +41,8 @@ jobs:
           WORKSHEET_NAME: ${{ secrets.WORKSHEET_NAME }}
           GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
           TELETHON_SESSION: ${{ secrets.TELETHON_SESSION }}
+          # Se usar bot ao invés de sessão, forneça o token:
+          # TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
         run: |
           python src/telegram_to_sheets.py
 
@@ -57,7 +59,9 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          git add data/events.parquet data/state.json
+          git add data/events.parquet data/state.json || true
 
-          git diff --cached --quiet || git commit -m "Auto-update data files"
-          git push
+          if ! git diff --cached --quiet; then
+            git commit -m "Auto-update data files"
+            git push
+          fi
