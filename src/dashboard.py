@@ -54,7 +54,7 @@ df[valor_col] = pd.to_numeric(df[valor_col], errors="coerce")
 df = df.dropna(subset=[valor_col])
 
 # -------------------------
-# Filtro por intervalo de data (usando somente 'date')
+# Filtro por intervalo de data (usando somente 'date') + Data (BR)
 # -------------------------
 if data_col:
     # Converte qualquer representação para 'date' (descarta datetime)
@@ -66,13 +66,40 @@ if data_col:
         min_date = valid_dates.min()
         max_date = valid_dates.max()
 
-        st.subheader("Selecione o Período")
-        start_date, end_date = st.date_input(
-            "Intervalo entre datas)",
-            value=(min_date, max_date),
-            min_value=min_date,
-            max_value=max_date,
-            format="DD/MM/YYYY",   # <-- PT-BR no seletor
+        st.subheader("Período")
+
+        # --- CSS para reduzir largura do seletor ---
+        st.markdown(
+            """
+            <style>
+            div[data-testid="stDateInput"] { max-width: 260px; width: 100%; }
+            div[data-baseweb="input"] { max-width: 260px; }
+            </style>
+            """,
+            unsafe_allow_html=True
+        )
+
+        # --- Colunas para controlar a largura/posição ---
+        left_spacer, col_filter, right_spacer = st.columns([1, 3, 8])
+        with col_filter:
+            start_date, end_date = st.date_input(
+                "Intervalo de datas (coluna 'Data')",
+                value=(min_date, max_date),
+                min_value=min_date,
+                max_value=max_date,
+                format="DD/MM/YYYY",
+            )
+
+        if end_date < start_date:
+            st.warning("A data final é menor que a data inicial. Ajuste o intervalo.")
+            st.stop()
+
+        # Aplica filtro (somente 'date')
+        df = df[(df[data_col] >= start_date) & (df[data_col] <= end_date)]
+
+        # Coluna de exibição em PT-BR
+        df["Data (BR)"] = df[data_col].apply(
+            lambda d: d.strftime("%d/%m/%Y") if pd.notna(d) else ""
         )
 
         if end_date < start_date:
@@ -82,7 +109,7 @@ if data_col:
         # Aplica filtro (somente 'date')
         df = df[(df[data_col] >= start_date) & (df[data_col] <= end_date)]
 
-        # ---------- NOVO: Coluna de exibição em PT-BR ----------
+        # Coluna de exibição em PT-BR
         df["Data (BR)"] = df[data_col].apply(
             lambda d: d.strftime("%d/%m/%Y") if pd.notna(d) else ""
         )
@@ -113,11 +140,108 @@ c3.metric("Saldo (filtrado)", f"R$ {(total_entrada - total_saida):,.2f}".replace
 st.subheader("Selecione uma linha")
 
 # -------- Exibição: inclui 'Data (BR)' na tabela --------
-# Mantemos a coluna original 'Data' (tipo date) para cálculos e filtro,
+# Mantemos a coluna original 'Data' (tipo date) para cálculos/filtro,
 # mas priorizamos 'Data (BR)' na tabela para visual.
 cols_for_view = list(df.columns)
 # Garante que 'Data (BR)' aparece imediatamente após 'Data' (se houver)
 if data_col and "Data (BR)" in cols_for_view:
-    # Move 'Data (BR)' para logo após 'Data'
     cols_for_view.remove("Data (BR)")
     if data_col in cols_for_view:
+        insert_pos = cols_for_view.index(data_col) + 1
+        cols_for_view.insert(insert_pos, "Data (BR)")
+    else:
+        cols_for_view.append("Data (BR)")
+
+preview_df = df[cols_for_view].head(200).copy()
+
+preview_event = st.dataframe(
+    preview_df,
+    width='stretch',
+    hide_index=True,
+    selection_mode="single-row",
+    on_select="rerun",
+)
+
+# Leitura da seleção
+selected_rows = []
+try:
+    selected_rows = preview_event.selection.get("rows", [])
+except Exception:
+    selected_rows = []
+
+def _val_or_blank(row_obj, col_name):
+    if col_name is None:
+        return ""
+    if col_name not in row_obj.index:
+        return ""
+    vv = row_obj[col_name]
+    if pd.isna(vv):
+        return ""
+    return str(vv)
+
+def _escape_html(txt_val):
+    if txt_val is None:
+        return ""
+    return str(txt_val).replace('&','&').replace('<','<').replace('>','>')
+
+if len(selected_rows) == 1:
+    sel_row = preview_df.iloc[int(selected_rows[0])]
+    tipo_txt = _escape_html(_val_or_blank(sel_row, tipo_col))
+    valor_txt = _escape_html(_val_or_blank(sel_row, valor_col))
+    descricao_txt = _escape_html(_val_or_blank(sel_row, descricao_col))
+    cliente_txt = _escape_html(_val_or_blank(sel_row, cliente_col))
+    forma_pagamento_txt = _escape_html(_val_or_blank(sel_row, forma_pagamento_col))
+    # Mostra a exibição PT-BR quando disponível; senão, cai para a 'Data' crua
+    data_txt = _escape_html(_val_or_blank(sel_row, "Data (BR)")) or _escape_html(_val_or_blank(sel_row, data_col))
+
+    card_html = (
+        '<div style="display:flex; justify-content:center; margin-top: 18px;">'
+        '<div style="position:relative; width: 360px; height: 520px; border: 6px solid #111827; border-radius: 18px; background: #ffffff;">'
+        '<div style="position:absolute; top: 18px; left: 18px; text-align:left; line-height: 1;">'
+        '<div style="font-size: 44px; color:#111827; font-weight:700;">♠</div>'
+        '<div style="font-size: 26px; color:#111827; margin-top:-8px;">♠</div>'
+        '</div>'
+        '<div style="position:absolute; bottom: 18px; right: 18px; text-align:right; line-height: 1; transform: rotate(180deg);">'
+        '<div style="font-size: 44px; color:#111827; font-weight:700;">♠</div>'
+        '<div style="font-size: 26px; color:#111827; margin-top:-8px;">♠</div>'
+        '</div>'
+        '<div style="position:absolute; inset: 0; display:flex; align-items:center; justify-content:center;">'
+        '<div style="text-align:center; font-size: 20px; color:#111827; font-weight:600; line-height: 1.9; padding: 0 26px;">'
+        + 'Tipo: ' + tipo_txt + '<br>'
+        + 'Valor: ' + valor_txt + '<br>'
+        + 'Descrição: ' + descricao_txt + '<br>'
+        + 'Cliente: ' + cliente_txt + '<br>'
+        + 'Forma de Pagamento: ' + forma_pagamento_txt + '<br>'
+        + 'Data: ' + data_txt + '<br>'
+        + '</div>'
+        '</div>'
+        '</div>'
+        '</div>'
+    )
+    st.markdown(card_html, unsafe_allow_html=True)
+else:
+    st.caption("Selecione uma linha acima para ver os detalhes.")
+
+# ==========================================
+# Seção final (cálculo) — já com DF filtrado
+# ==========================================
+work_df = df.copy()
+
+# Garantia de numérico
+work_df[valor_col] = (
+    work_df[valor_col]
+    .astype(str)
+    .str.replace(".", "", regex=False)
+    .str.replace(",", ".", regex=False)
+)
+work_df[valor_col] = pd.to_numeric(work_df[valor_col], errors="coerce")
+
+# Mantém 'Data' como 'date' (nenhuma conversão para datetime aqui)
+# work_df[data_col] já está como date (se existir)
+
+work_df[tipo_col] = work_df[tipo_col].astype(str).str.strip()
+entrada_df = work_df[work_df[tipo_col].str.lower() == "entrada"]
+saida_df = work_df[work_df[tipo_col].str.lower().isin(["saída", "saida"])]
+
+total_entrada = entrada_df[valor_col].sum(skipna=True)
+total_saida = saida_df[valor_col].sum(skipna=True)
