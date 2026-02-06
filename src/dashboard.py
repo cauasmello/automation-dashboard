@@ -37,7 +37,7 @@ if not tipo_col or not valor_col:
     st.stop()
 
 # ==========================================
-# Preparação dos dados (mantendo 'Data' como date)
+# Preparação (mantendo 'Data' como date)
 # ==========================================
 df = df_raw.copy()
 
@@ -54,12 +54,12 @@ df[valor_col] = pd.to_numeric(df[valor_col], errors="coerce")
 df = df.dropna(subset=[valor_col])
 
 # -------------------------
-# Filtro por intervalo de data (usando somente 'date') + Data (BR)
+# Período (filtro por intervalo) + Data (BR)
 # -------------------------
 if data_col:
-    # Converte qualquer representação para 'date' (descarta datetime)
+    # Converte para 'date' (descarta datetime)
     tmp = pd.to_datetime(df[data_col].astype(str).str.strip(), errors="coerce")
-    df[data_col] = tmp.dt.date  # <- tipo 'date'
+    df[data_col] = tmp.dt.date
 
     valid_dates = df[data_col].dropna()
     if not valid_dates.empty:
@@ -68,56 +68,46 @@ if data_col:
 
         st.subheader("Período")
 
-        # --- CSS para reduzir a largura do DateInput (sem mudar o alinhamento) ---
+        # CSS para reduzir largura do seletor (sem mudar alinhamento)
         st.markdown(
             """
             <style>
-            /* Limita a largura do componente de intervalo de data */
-            div[data-testid="stDateInput"] {
-                max-width: 260px;   /* ajuste: 200px, 220px, 280px... */
-                width: 100%;
-            }
-            /* Garante que o input interno não estique */
-            div[data-baseweb="input"] {
-                max-width: 260px;
-            }
+            div[data-testid="stDateInput"] { max-width: 260px; width: 100%; }
+            div[data-baseweb="input"] { max-width: 260px; }
             </style>
             """,
             unsafe_allow_html=True
         )
 
-        # --- Seletor de intervalo de datas logo abaixo do título ---
         start_date, end_date = st.date_input(
             "Intervalo de datas (coluna 'Data')",
             value=(min_date, max_date),
             min_value=min_date,
             max_value=max_date,
-            format="DD/MM/YYYY",   # PT-BR no seletor
+            format="DD/MM/YYYY",
         )
 
         if end_date < start_date:
             st.warning("A data final é menor que a data inicial. Ajuste o intervalo.")
             st.stop()
 
-        # Aplica filtro (somente 'date')
+        # Filtro por 'date'
         df = df[(df[data_col] >= start_date) & (df[data_col] <= end_date)]
 
-        # Coluna de exibição em PT-BR para a tabela/cartão
+        # Coluna de exibição em PT-BR
         df["Data (BR)"] = df[data_col].apply(
             lambda d: d.strftime("%d/%m/%Y") if pd.notna(d) else ""
         )
     else:
         st.info("Não há valores de data válidos para aplicar filtro.")
-        # Mesmo sem filtro, se existir coluna Data, cria exibição PT-BR (vazia)
         df["Data (BR)"] = df.get(data_col, pd.Series([None]*len(df))).apply(
             lambda d: d.strftime("%d/%m/%Y") if pd.notna(d) else ""
         )
 else:
-    # Caso não exista a coluna "Data", cria "Data (BR)" vazia para evitar KeyError na exibição
     df["Data (BR)"] = ""
 
 # ==========================================
-# Métricas e tabela (já usando o DF filtrado)
+# Métricas
 # ==========================================
 df_entrada = df[df[tipo_col].astype(str).str.lower() == "entrada"]
 df_saida = df[df[tipo_col].astype(str).str.lower().isin(["saída", "saida"])]
@@ -132,18 +122,16 @@ c3.metric("Saldo (filtrado)", f"R$ {(total_entrada - total_saida):,.2f}".replace
 
 st.subheader("Selecione uma linha")
 
-# -------- Exibição: inclui 'Data (BR)' na tabela --------
-# Mantemos a coluna original 'Data' (tipo date) para cálculos/filtro,
-# mas priorizamos 'Data (BR)' na tabela para visual.
-# -------- Exibição: SOMENTE 'Data (BR)' na tabela --------
-# Garante que 'Data (BR)' exista (foi criada no bloco do filtro)
+# ==========================================
+# Tabela: SOMENTE 'Data (BR)' (oculta 'Data')
+# ==========================================
 cols_for_view = list(df.columns)
 
-# Remove a coluna 'Data' da visualização, se existir
+# Remove a coluna 'Data' da visualização
 if data_col in cols_for_view:
     cols_for_view.remove(data_col)
 
-# Garante que 'Data (BR)' esteja presente; se não estiver, cria a partir de 'Data'
+# Garante 'Data (BR)' e posiciona (aqui, no final; ajuste se quiser)
 if "Data (BR)" not in cols_for_view:
     if data_col in df.columns:
         df["Data (BR)"] = df[data_col].apply(
@@ -151,14 +139,20 @@ if "Data (BR)" not in cols_for_view:
         )
     else:
         df["Data (BR)"] = ""
-
-# Opcional: coloca 'Data (BR)' mais à direita de 'Forma de Pagamento' (ou no fim, se preferir)
-# Primeiro remove e depois insere na posição desejada
-cols_for_view.remove("Data (BR)")
-insert_pos = len(cols_for_view)  # no fim; mude se quiser outra posição
-cols_for_view.insert(insert_pos, "Data (BR)")
+# Move 'Data (BR)' para a posição final (ou escolha outra posição)
+if "Data (BR)" in cols_for_view:
+    cols_for_view.remove("Data (BR)")
+cols_for_view.append("Data (BR)")
 
 preview_df = df[cols_for_view].head(200).copy()
+
+preview_event = st.dataframe(
+    preview_df,
+    width='stretch',
+    hide_index=True,
+    selection_mode="single-row",
+    on_select="rerun",
+)
 
 # Leitura da seleção
 selected_rows = []
@@ -189,7 +183,7 @@ if len(selected_rows) == 1:
     descricao_txt = _escape_html(_val_or_blank(sel_row, descricao_col))
     cliente_txt = _escape_html(_val_or_blank(sel_row, cliente_col))
     forma_pagamento_txt = _escape_html(_val_or_blank(sel_row, forma_pagamento_col))
-    # Mostra a exibição PT-BR
+    # Apenas 'Data (BR)' no card
     data_txt = _escape_html(_val_or_blank(sel_row, "Data (BR)"))
 
     card_html = (
@@ -234,9 +228,7 @@ work_df[valor_col] = (
 )
 work_df[valor_col] = pd.to_numeric(work_df[valor_col], errors="coerce")
 
-# Mantém 'Data' como 'date' (nenhuma conversão para datetime aqui)
-# work_df[data_col] já está como date (se existir)
-
+# Mantém 'Data' como 'date' para lógica (mesmo ocultando na UI)
 work_df[tipo_col] = work_df[tipo_col].astype(str).str.strip()
 entrada_df = work_df[work_df[tipo_col].str.lower() == "entrada"]
 saida_df = work_df[work_df[tipo_col].str.lower().isin(["saída", "saida"])]
