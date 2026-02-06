@@ -68,38 +68,31 @@ if data_col:
 
         st.subheader("Período")
 
-        # --- CSS para reduzir largura do seletor ---
+        # --- CSS para reduzir a largura do DateInput (sem mudar o alinhamento) ---
         st.markdown(
             """
             <style>
-            div[data-testid="stDateInput"] { max-width: 260px; width: 100%; }
-            div[data-baseweb="input"] { max-width: 260px; }
+            /* Limita a largura do componente de intervalo de data */
+            div[data-testid="stDateInput"] {
+                max-width: 260px;   /* ajuste: 200px, 220px, 280px... */
+                width: 100%;
+            }
+            /* Garante que o input interno não estique */
+            div[data-baseweb="input"] {
+                max-width: 260px;
+            }
             </style>
             """,
             unsafe_allow_html=True
         )
 
-        # --- Colunas para controlar a largura/posição ---
-        left_spacer, col_filter, right_spacer = st.columns([1, 3, 8])
-        with col_filter:
-            start_date, end_date = st.date_input(
-                "Intervalo de datas (coluna 'Data')",
-                value=(min_date, max_date),
-                min_value=min_date,
-                max_value=max_date,
-                format="DD/MM/YYYY",
-            )
-
-        if end_date < start_date:
-            st.warning("A data final é menor que a data inicial. Ajuste o intervalo.")
-            st.stop()
-
-        # Aplica filtro (somente 'date')
-        df = df[(df[data_col] >= start_date) & (df[data_col] <= end_date)]
-
-        # Coluna de exibição em PT-BR
-        df["Data (BR)"] = df[data_col].apply(
-            lambda d: d.strftime("%d/%m/%Y") if pd.notna(d) else ""
+        # --- Seletor de intervalo de datas logo abaixo do título ---
+        start_date, end_date = st.date_input(
+            "Intervalo de datas (coluna 'Data')",
+            value=(min_date, max_date),
+            min_value=min_date,
+            max_value=max_date,
+            format="DD/MM/YYYY",   # PT-BR no seletor
         )
 
         if end_date < start_date:
@@ -109,7 +102,7 @@ if data_col:
         # Aplica filtro (somente 'date')
         df = df[(df[data_col] >= start_date) & (df[data_col] <= end_date)]
 
-        # Coluna de exibição em PT-BR
+        # Coluna de exibição em PT-BR para a tabela/cartão
         df["Data (BR)"] = df[data_col].apply(
             lambda d: d.strftime("%d/%m/%Y") if pd.notna(d) else ""
         )
@@ -142,25 +135,30 @@ st.subheader("Selecione uma linha")
 # -------- Exibição: inclui 'Data (BR)' na tabela --------
 # Mantemos a coluna original 'Data' (tipo date) para cálculos/filtro,
 # mas priorizamos 'Data (BR)' na tabela para visual.
+# -------- Exibição: SOMENTE 'Data (BR)' na tabela --------
+# Garante que 'Data (BR)' exista (foi criada no bloco do filtro)
 cols_for_view = list(df.columns)
-# Garante que 'Data (BR)' aparece imediatamente após 'Data' (se houver)
-if data_col and "Data (BR)" in cols_for_view:
-    cols_for_view.remove("Data (BR)")
-    if data_col in cols_for_view:
-        insert_pos = cols_for_view.index(data_col) + 1
-        cols_for_view.insert(insert_pos, "Data (BR)")
+
+# Remove a coluna 'Data' da visualização, se existir
+if data_col in cols_for_view:
+    cols_for_view.remove(data_col)
+
+# Garante que 'Data (BR)' esteja presente; se não estiver, cria a partir de 'Data'
+if "Data (BR)" not in cols_for_view:
+    if data_col in df.columns:
+        df["Data (BR)"] = df[data_col].apply(
+            lambda d: d.strftime("%d/%m/%Y") if pd.notna(d) else ""
+        )
     else:
-        cols_for_view.append("Data (BR)")
+        df["Data (BR)"] = ""
+
+# Opcional: coloca 'Data (BR)' mais à direita de 'Forma de Pagamento' (ou no fim, se preferir)
+# Primeiro remove e depois insere na posição desejada
+cols_for_view.remove("Data (BR)")
+insert_pos = len(cols_for_view)  # no fim; mude se quiser outra posição
+cols_for_view.insert(insert_pos, "Data (BR)")
 
 preview_df = df[cols_for_view].head(200).copy()
-
-preview_event = st.dataframe(
-    preview_df,
-    width='stretch',
-    hide_index=True,
-    selection_mode="single-row",
-    on_select="rerun",
-)
 
 # Leitura da seleção
 selected_rows = []
@@ -191,8 +189,8 @@ if len(selected_rows) == 1:
     descricao_txt = _escape_html(_val_or_blank(sel_row, descricao_col))
     cliente_txt = _escape_html(_val_or_blank(sel_row, cliente_col))
     forma_pagamento_txt = _escape_html(_val_or_blank(sel_row, forma_pagamento_col))
-    # Mostra a exibição PT-BR quando disponível; senão, cai para a 'Data' crua
-    data_txt = _escape_html(_val_or_blank(sel_row, "Data (BR)")) or _escape_html(_val_or_blank(sel_row, data_col))
+    # Mostra a exibição PT-BR
+    data_txt = _escape_html(_val_or_blank(sel_row, "Data (BR)"))
 
     card_html = (
         '<div style="display:flex; justify-content:center; margin-top: 18px;">'
