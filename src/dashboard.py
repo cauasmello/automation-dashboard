@@ -64,6 +64,69 @@ if data_col:
 work_df[tipo_col] = work_df[tipo_col].astype(str).str.strip()
 
 # ===================================================================
+# Filtros por coluna (múltipla escolha) — acima da tabela
+# ===================================================================
+st.subheader("Filtros por coluna")
+
+# Não repetimos o filtro por data aqui (já existe o filtro de período)
+exclude_cols = set([data_col]) if data_col else set()
+
+PLACEHOLDER_NA = "(vazio)"  # como vamos exibir e filtrar valores vazios
+
+def _chunks(lst, n):
+    """Divide a lista em blocos de tamanho n (para layout responsivo)."""
+    for i in range(0, len(lst), n):
+        yield lst[i : i + n]
+
+def _prepare_options(series: pd.Series):
+    """Gera opções tipadas e amigáveis para o multiselect daquela coluna."""
+    if pd.api.types.is_datetime64_any_dtype(series):
+        # se quiser permitir filtro por 'data' aqui, troque exclude_cols acima
+        opts = series.dt.date.astype("object")
+    else:
+        opts = series.astype("object")
+    # substitui NaN/NaT/None por marcador
+    opts = opts.where(~pd.isna(opts), other=PLACEHOLDER_NA)
+
+    # únicos ordenados (limitamos a 2000 para não poluir a UI)
+    uniques = pd.unique(opts)
+    try:
+        uniques = sorted(uniques, key=lambda x: (str(x).casefold()))
+    except Exception:
+        uniques = list(uniques)
+    return [str(x) for x in uniques[:2000]]
+
+col_selections = {}
+cols_to_filter = [c for c in work_df.columns if c not in exclude_cols]
+
+# Renderiza em linhas de 3 colunas (ajuste se preferir 2 ou 4)
+for group in _chunks(cols_to_filter, 3):
+    st_cols = st.columns(len(group))
+    for c, container in zip(group, st_cols):
+        with container:
+            options = _prepare_options(work_df[c])
+            # default vazio = não filtra; o usuário escolhe o que quer ver
+            sel = st.multiselect(f"{c}", options=options, default=[])
+            col_selections[c] = sel
+
+# Aplica os filtros cumulativamente
+for c, sel in col_selections.items():
+    if not sel:
+        continue
+    ser = work_df[c]
+    if pd.api.types.is_datetime64_any_dtype(ser):
+        left = ser.dt.date.astype("object")
+    else:
+        left = ser.astype("object")
+    left = left.where(~pd.isna(left), other=PLACEHOLDER_NA).astype(str)
+    mask = left.isin(set(sel))
+    work_df = work_df.loc[mask].copy()
+
+st.caption(
+    f"Filtros aplicados: {sum(1 for v in col_selections.values() if v)} coluna(s) · {len(work_df)} registros após filtros"
+)
+
+# ===================================================================
 # Filtro de Período (ACIMA da tabela). BLOQUEIA seleção de único dia.
 # Janela SEMIABERTA: [início, fim)
 # ===================================================================
