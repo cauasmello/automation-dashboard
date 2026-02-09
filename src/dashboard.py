@@ -114,7 +114,7 @@ if data_col:
     mask = (work_df[data_col] >= start_dt) & (work_df[data_col] < end_exclusive)
     work_df = work_df.loc[mask].copy()
     st.caption(
-        f"Período aplicado (intervalo semiaberto [início, fim)): {start_date:%d/%m/%Y} a {end_date:%d/%m/%Y} · {len(work_df)} registros"
+        f"Período aplicado, Início: {start_date:%d/%m/%Y} / Fim: {end_date:%d/%m/%Y} · {len(work_df)} Registros"
     )
 
 # ===================================================================
