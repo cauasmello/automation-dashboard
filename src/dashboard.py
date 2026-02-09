@@ -24,10 +24,9 @@ if not PARQUET_FILE.exists():
     st.stop()
 
 # ===================================================================
-# Carrega e prepara base
+# Carrega base e padroniza nomes
 # ===================================================================
 df_raw = pd.read_parquet(PARQUET_FILE)
-# Tenta padronizar nomes (tolerante a ordem/acentos)
 col_map = {c.lower().strip(): c for c in df_raw.columns}
 
 tipo_col  = col_map.get("tipo")
@@ -41,8 +40,11 @@ if not tipo_col or not valor_col:
     st.info("Não encontrei colunas Tipo/Valor. Colunas disponíveis: " + ", ".join(df_raw.columns))
     st.stop()
 
-# Copiamos e limpamos valores numéricos
+# ===================================================================
+# Normalizações de trabalho (ANTES de qualquer UI que dependa dos dados)
+# ===================================================================
 work_df = df_raw.copy()
+# Valor numérico
 work_df[valor_col] = (
     work_df[valor_col]
     .astype(str)
@@ -52,18 +54,18 @@ work_df[valor_col] = (
 work_df[valor_col] = pd.to_numeric(work_df[valor_col], errors="coerce")
 work_df = work_df.dropna(subset=[valor_col])
 
-# Limpa/normaliza a coluna de data
+# Data para datetime (mantendo NaT onde inválido)
 if data_col:
-    # Remove strings vazias e converte para datetime (mantém NaT se inválido)
     work_df[data_col] = work_df[data_col].astype(str).str.strip()
     work_df.loc[work_df[data_col].isin(["", "None", "nan", "NaT"]), data_col] = None
     work_df[data_col] = pd.to_datetime(work_df[data_col], errors="coerce")
 
-# Normaliza tipo
+# Tipo como string normalizada
 work_df[tipo_col] = work_df[tipo_col].astype(str).str.strip()
 
 # ===================================================================
-# Filtro de Período (ACIMA da tabela) – aceita um único dia e usa [início, fim)
+# Filtro de Período (ACIMA da tabela). BLOQUEIA seleção de único dia.
+# Janela SEMIABERTA: [início, fim)
 # ===================================================================
 if data_col:
     st.subheader("Período")
@@ -77,7 +79,6 @@ if data_col:
         data_min = today - dt.timedelta(days=7)
         data_max = today
 
-    # Default: últimos 7 dias até o máximo
     default_start = max(data_min, data_max - dt.timedelta(days=7))
     default_end = data_max
 
@@ -86,31 +87,35 @@ if data_col:
         value=(default_start, default_end),
         format="DD/MM/YYYY",
         help=(
-            "Selecione data inicial e final. Se escolher apenas um dia, vamos considerar somente aquele dia "
-            "(intervalo semiaberto [início, fim))."
+            "Selecione data inicial e final (arrastando no calendário). "
+            "O dashboard requer **duas datas diferentes** para formar um intervalo válido."
         ),
     )
 
-    # Autocorreção: único dia vira [dia, dia]
-    if isinstance(date_sel, tuple) and len(date_sel) == 2:
-        start_date, end_date = date_sel
-    else:
-        start_date = end_date = date_sel
-        st.info("Considerando somente o dia selecionado.")
+    # >>> BLOQUEIO explícito de seleção inválida <<<
+    if not isinstance(date_sel, tuple) or len(date_sel) != 2:
+        st.warning("Selecione **um intervalo** com data inicial e final.")
+        st.stop()
 
-    # Sanidade: garante ordem
+    start_date, end_date = date_sel
+    if start_date == end_date:
+        st.warning("Selecione **datas diferentes** para formar um intervalo válido.")
+        st.stop()
+
+    # Corrige inversão, se necessário
     if start_date > end_date:
         start_date, end_date = end_date, start_date
         st.warning("As datas foram invertidas para manter início <= fim.")
 
-    # Constrói limites em datetime (00:00) e semiaberto
-    start_dt = pd.Timestamp(start_date)
-    end_exclusive = pd.Timestamp(end_date) + pd.offsets.Day(1)
+    # Limites em datetime (meia-noite) + semiaberto
+    start_dt = dt.datetime.combine(start_date, dt.time.min)
+    end_exclusive = dt.datetime.combine(end_date, dt.time.min) + dt.timedelta(days=1)
 
-    # Importante: compara diretamente datetime64[ns] com Timestamp
     mask = (work_df[data_col] >= start_dt) & (work_df[data_col] < end_exclusive)
     work_df = work_df.loc[mask].copy()
-    st.caption(f"Período aplicado (intervalo semiaberto [início, fim)): {start_date:%d/%m/%Y} a {end_date:%d/%m/%Y} · {len(work_df)} registros")
+    st.caption(
+        f"Período aplicado (intervalo semiaberto [início, fim)): {start_date:%d/%m/%Y} a {end_date:%d/%m/%Y} · {len(work_df)} registros"
+    )
 
 # ===================================================================
 # Métricas após o filtro
@@ -134,7 +139,6 @@ preview_event = st.dataframe(
     on_select="rerun",
 )
 
-# Quando o usuário seleciona uma linha, mostramos um card estilo 'carta' (mock)
 selected_rows = []
 try:
     selected_rows = preview_event.selection.get("rows", [])
