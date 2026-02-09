@@ -156,58 +156,75 @@ st.caption(
 )
 
 # ===================================================================
-# Filtro de Período (ACIMA da tabela). BLOQUEIA seleção de único dia.
+# Filtro de Período (ACIMA da tabela).
 # Janela SEMIABERTA: [início, fim)
 # ===================================================================
 if data_col:
     st.subheader("Período")
 
-    _valid_dates = work_df[data_col].dropna()
-    if not _valid_dates.empty:
-        data_min = _valid_dates.min().date()
-        data_max = _valid_dates.max().date()
-    else:
-        today = dt.date.today()
-        data_min = today - dt.timedelta(days=7)
-        data_max = today
+    # Datas válidas após filtros por coluna
+    _valid_dt = work_df[data_col].dropna()
+    # Caso o dtypes seja datetime64[ns], isso retorna datetimes; vamos derivar as 'dates'
+    _valid_dates = _valid_dt.dt.date if hasattr(_valid_dt.dt, "date") else _valid_dt
 
-    default_start = max(data_min, data_max - dt.timedelta(days=7))
-    default_end = data_max
+    if not _valid_dt.empty:
+        data_min = _valid_dt.min().normalize().date()
+        data_max = _valid_dt.max().normalize().date()
+        unique_dates = pd.unique(_valid_dates)
+    else:
+        # fallback quando não há dados (evita estado inválido)
+        today = dt.date.today()
+        data_min = today
+        data_max = today
+        unique_dates = []
+
+    # Se o resultado após filtros por coluna tem apenas UM dia, vamos
+    # defaultar o intervalo para [dia, dia] e ACEITAR um único dia
+    force_single_day = len(unique_dates) == 1
+
+    default_start = data_min if force_single_day else max(data_min, data_max - dt.timedelta(days=7))
+    default_end   = data_max
 
     date_sel = st.date_input(
         "Intervalo de datas",
         value=(default_start, default_end),
         format="DD/MM/YYYY",
         help=(
-            "Selecione data inicial e final (arrastando no calendário). "
-            "O dashboard requer **duas datas diferentes** para formar um intervalo válido."
+            "Selecione data inicial e final. "
+            "Se houver apenas um dia com registros, consideraremos somente aquele dia (intervalo [início, fim))."
         ),
     )
 
-    # >>> BLOQUEIO explícito de seleção inválida <<<
-    if not isinstance(date_sel, tuple) or len(date_sel) != 2:
-        st.warning("Selecione **um intervalo** com data inicial e final.")
-        st.stop()
+    # Aceita tuple (intervalo) ou um único 'date'
+    if isinstance(date_sel, tuple) and len(date_sel) == 2:
+        start_date, end_date = date_sel
+    else:
+        start_date = end_date = date_sel
 
-    start_date, end_date = date_sel
-    if start_date == end_date:
-        st.warning("Selecione **datas diferentes** para formar um intervalo válido.")
-        st.stop()
-
-    # Corrige inversão, se necessário
+    # Corrige inversão
     if start_date > end_date:
         start_date, end_date = end_date, start_date
         st.warning("As datas foram invertidas para manter início <= fim.")
 
-    # Limites em datetime (meia-noite) + semiaberto
+    # Se for um único dia, apenas informe e prossiga (NÃO use st.stop)
+    if start_date == end_date:
+        st.info("Considerando somente o dia selecionado.")
+
+    # Constrói limites em datetime na meia-noite + intervalo semiaberto
     start_dt = dt.datetime.combine(start_date, dt.time.min)
     end_exclusive = dt.datetime.combine(end_date, dt.time.min) + dt.timedelta(days=1)
 
-    mask = (work_df[data_col] >= start_dt) & (work_df[data_col] < end_exclusive)
-    work_df = work_df.loc[mask].copy()
+    mask_periodo = (work_df[data_col] >= start_dt) & (work_df[data_col] < end_exclusive)
+    work_df = work_df.loc[mask_periodo].copy()
+
     st.caption(
         f"Período aplicado, Início: {start_date:%d/%m/%Y} - Fim: {end_date:%d/%m/%Y} · {len(work_df)} Registros"
     )
+
+    # Se após aplicar o período ficar vazio, avisar (sem erro) e sair
+    if work_df.empty:
+        st.info("Nenhum registro para os filtros aplicados e período selecionado.")
+        st.stop()
 
 # ===================================================================
 # Métricas após o filtro
