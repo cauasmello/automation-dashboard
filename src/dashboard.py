@@ -23,6 +23,9 @@ if not PARQUET_FILE.exists():
     st.warning("Ainda não existe data/events.parquet. Aguarde a automação ou rode export_to_parquet.py.")
     st.stop()
 
+# ===================================================================
+# Carrega e prepara base
+# ===================================================================
 df_raw = pd.read_parquet(PARQUET_FILE)
 # Tenta padronizar nomes (tolerante a ordem/acentos)
 col_map = {c.lower().strip(): c for c in df_raw.columns}
@@ -38,29 +41,91 @@ if not tipo_col or not valor_col:
     st.info("Não encontrei colunas Tipo/Valor. Colunas disponíveis: " + ", ".join(df_raw.columns))
     st.stop()
 
-df = df_raw.copy()
-# Remove coluna de exportação (se existir) para nunca aparecer na tabela
-_drop_export_cols = [c for c in df.columns if c.lower().strip() in ["data/hora da exportação", "data/hora da exportacao", "data/hora exportação", "data/hora exportacao", "Data/Hora da Exportação", "Data/Hora da Exportacao", "Data/Hora Exportação", "Data/Hora Exportacao"]]
-if _drop_export_cols:
-    df = df.drop(columns=_drop_export_cols)
+# Copiamos e limpamos valores numéricos
+work_df = df_raw.copy()
+work_df[valor_col] = (
+    work_df[valor_col]
+    .astype(str)
+    .str.replace(".", "", regex=False)
+    .str.replace(",", ".", regex=False)
+)
+work_df[valor_col] = pd.to_numeric(work_df[valor_col], errors="coerce")
+work_df = work_df.dropna(subset=[valor_col])
 
-df[valor_col] = pd.to_numeric(df[valor_col], errors="coerce")
-df = df.dropna(subset=[valor_col])
-#Se tiver Data, assumimos que vem como date (YYYY-MM-DD). Só limpamos strings e vazios
+# Limpa/normaliza a coluna de data
 if data_col:
-    df[data_col] = df[data_col].astype(str).str.strip()
-    df.loc[df[data_col].isin(["", "None", "nan", "NaT"]), data_col] = None
+    # Remove strings vazias e converte para datetime (mantém NaT se inválido)
+    work_df[data_col] = work_df[data_col].astype(str).str.strip()
+    work_df.loc[work_df[data_col].isin(["", "None", "nan", "NaT"]), data_col] = None
+    work_df[data_col] = pd.to_datetime(work_df[data_col], errors="coerce")
 
-# Separa entradas e saídas
+# Normaliza tipo
+work_df[tipo_col] = work_df[tipo_col].astype(str).str.strip()
 
-df_entrada = df[df[tipo_col].str.lower() == "entrada"]
-df_saida   = df[df[tipo_col].str.lower() == "saída"]
+# ===================================================================
+# Filtro de Período (ACIMA da tabela) – aceita um único dia e usa [início, fim)
+# ===================================================================
+if data_col:
+    st.subheader("Período")
 
-total_entrada = df_entrada[valor_col].sum()
-total_saida   = df_saida[valor_col].sum()
+    _valid_dates = work_df[data_col].dropna()
+    if not _valid_dates.empty:
+        data_min = _valid_dates.min().date()
+        data_max = _valid_dates.max().date()
+    else:
+        today = dt.date.today()
+        data_min = today - dt.timedelta(days=7)
+        data_max = today
 
+    # Default: últimos 7 dias até o máximo
+    default_start = max(data_min, data_max - dt.timedelta(days=7))
+    default_end = data_max
+
+    date_sel = st.date_input(
+        "Intervalo de datas",
+        value=(default_start, default_end),
+        format="DD/MM/YYYY",
+        help=(
+            "Selecione data inicial e final. Se escolher apenas um dia, vamos considerar somente aquele dia "
+            "(intervalo semiaberto [início, fim))."
+        ),
+    )
+
+    # Autocorreção: único dia vira [dia, dia]
+    if isinstance(date_sel, tuple) and len(date_sel) == 2:
+        start_date, end_date = date_sel
+    else:
+        start_date = end_date = date_sel
+        st.info("Considerando somente o dia selecionado.")
+
+    # Sanidade: garante ordem
+    if start_date > end_date:
+        start_date, end_date = end_date, start_date
+        st.warning("As datas foram invertidas para manter início <= fim.")
+
+    # Constrói limites em datetime (00:00) e semiaberto
+    start_dt = pd.Timestamp(start_date)
+    end_exclusive = pd.Timestamp(end_date) + pd.offsets.Day(1)
+
+    # Importante: compara diretamente datetime64[ns] com Timestamp
+    mask = (work_df[data_col] >= start_dt) & (work_df[data_col] < end_exclusive)
+    work_df = work_df.loc[mask].copy()
+    st.caption(f"Período aplicado (intervalo semiaberto [início, fim)): {start_date:%d/%m/%Y} a {end_date:%d/%m/%Y} · {len(work_df)} registros")
+
+# ===================================================================
+# Métricas após o filtro
+# ===================================================================
+entrada_df = work_df[work_df[tipo_col].str.lower() == "entrada"]
+saida_df   = work_df[work_df[tipo_col].str.lower().isin(["saída", "saida"])]
+
+total_entrada = entrada_df[valor_col].sum(skipna=True)
+total_saida   = saida_df[valor_col].sum(skipna=True)
+
+# ===================================================================
+# Tabela filtrada + card de detalhes
+# ===================================================================
 st.subheader("Selecione uma linha")
-preview_df = df_raw.head(200).copy()
+preview_df = work_df.head(200).copy()
 preview_event = st.dataframe(
     preview_df,
     width='stretch',
@@ -76,6 +141,7 @@ try:
 except Exception:
     selected_rows = []
 
+
 def _val_or_blank(row_obj, col_name):
     if col_name is None:
         return ""
@@ -86,10 +152,12 @@ def _val_or_blank(row_obj, col_name):
         return ""
     return str(vv)
 
+
 def _escape_html(txt_val):
     if txt_val is None:
         return ""
     return str(txt_val).replace('&','&amp;').replace('<','&lt;').replace('>','&gt;')
+
 
 if len(selected_rows) == 1:
     sel_row = preview_df.iloc[int(selected_rows[0])]
@@ -128,66 +196,3 @@ if len(selected_rows) == 1:
     st.markdown(card_html, unsafe_allow_html=True)
 else:
     st.caption("Selecione uma linha acima para ver os detalhes.")
-
-
-# Normaliza valores para numérico
-work_df = df_raw.copy()
-work_df[valor_col] = (
-    work_df[valor_col]
-    .astype(str)
-    .str.replace(".", "", regex=False)
-    .str.replace(",", ".", regex=False)
-)
-work_df[valor_col] = pd.to_numeric(work_df[valor_col], errors="coerce")
-
-if data_col:
-    work_df[data_col] = pd.to_datetime(work_df[data_col], errors="coerce")
-
-
-# ==== Filtro de período (auto-corrige seleção de um único dia) ====
-if data_col:
-    st.subheader("Período")
-    # Determina intervalo padrão com base nos dados
-    _valid_dates = work_df[data_col].dropna()
-    if not _valid_dates.empty:
-        data_min = _valid_dates.min().date()
-        data_max = _valid_dates.max().date()
-    else:
-        today = dt.date.today()
-        data_min = today - dt.timedelta(days=7)
-        data_max = today
-
-    date_sel = st.date_input(
-        "Intervalo de datas",
-        value=(max(data_min, data_max - dt.timedelta(days=7)), data_max),
-        format="DD/MM/YYYY",
-        help="Selecione data inicial e final. Se escolher apenas um dia, vamos considerar somente aquele dia.",
-    )
-
-    # Auto-correção: aceita um único dia
-    if isinstance(date_sel, tuple) and len(date_sel) == 2:
-        start_date, end_date = date_sel
-    else:
-        start_date = end_date = date_sel
-        st.info("Considerando somente o dia selecionado.")
-
-    # Normalizações e sanidade
-    if start_date > end_date:
-        start_date, end_date = end_date, start_date
-        st.warning("As datas foram invertidas para manter início <= fim.")
-
-    # Aplica filtro por data (comparando por .dt.date)
-    mask = (work_df[data_col].dt.date >= start_date) & (work_df[data_col].dt.date <= end_date)
-    work_df = work_df.loc[mask].copy()
-    st.caption(f"Período aplicado: {start_date:%d/%m/%Y} a {end_date:%d/%m/%Y} · {len(work_df)} registros")
-# ================================================================
-
-
-
-work_df[tipo_col] = work_df[tipo_col].astype(str).str.strip()
-
-entrada_df = work_df[work_df[tipo_col].str.lower() == "entrada"]
-saida_df = work_df[work_df[tipo_col].str.lower().isin(["saída", "saida"])]
-
-total_entrada = entrada_df[valor_col].sum(skipna=True)
-total_saida = saida_df[valor_col].sum(skipna=True)
