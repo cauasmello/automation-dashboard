@@ -68,8 +68,32 @@ work_df[tipo_col] = work_df[tipo_col].astype(str).str.strip()
 # ===================================================================
 st.subheader("Filtros por coluna")
 
-# Não repetimos o filtro por data aqui (já existe o filtro de período)
-exclude_cols = set([data_col]) if data_col else set()
+# Colunas que NÃO entram no multiselect (Data já tem filtro próprio)
+exclude_cols = set()
+
+# Data: já filtrada pelo bloco de período
+if data_col:
+    exclude_cols.add(data_col)
+
+# Valor: não queremos filtrar por multiselect (tipicamente é melhor slider)
+if valor_col:
+    exclude_cols.add(valor_col)
+
+# Data/Hora da Exportação: exclui por qualquer alias conhecido
+_export_aliases = {
+    "data/hora da exportação",
+    "data/hora da exportacao",
+    "data/hora exportação",
+    "data/hora exportacao",
+    "Data/Hora da Exportação",
+    "Data/Hora da Exportaçao",
+    "Data/Hora da Exportacão"
+    ""
+}
+# Mapeia para o nome original existente no DF (respeitando a grafia)
+for c in list(work_df.columns):
+    if c.lower().strip() in _export_aliases:
+        exclude_cols.add(c)
 
 PLACEHOLDER_NA = "(vazio)"  # como vamos exibir e filtrar valores vazios
 
