@@ -130,7 +130,12 @@ for group in _chunks(cols_to_filter, 3):
         with container:
             options = _prepare_options(work_df[c])
             # default vazio = não filtra; o usuário escolhe o que quer ver
-            sel = st.multiselect(f"{c}", options=options, default=[])
+            sel = st.multiselect(
+                label=f"{c}",
+                options=options,
+                default=[],
+                placeholder="Selecione os valores a serem filtrados..."
+            )
             col_selections[c] = sel
 
 # Aplica os filtros cumulativamente
