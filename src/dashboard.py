@@ -27,6 +27,8 @@ if not PARQUET_FILE.exists():
 # Carrega base e padroniza nomes
 # ===================================================================
 df_raw = pd.read_parquet(PARQUET_FILE)
+work_df = df_raw.copy()
+
 col_map = {c.lower().strip(): c for c in df_raw.columns}
 
 tipo_col  = col_map.get("tipo")
