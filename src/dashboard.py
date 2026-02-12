@@ -220,14 +220,19 @@ if data_col:
         st.info("Nenhum registro para os filtros aplicados e período selecionado.")
         st.stop()
 
-# ===================================================================
-# Métricas após o filtro
-# ===================================================================
-entrada_df = work_df[work_df[tipo_col].str.lower() == "entrada"]
-saida_df   = work_df[work_df[tipo_col].str.lower().isin(["saída", "saida"])]
+# ==========================================
+# Métricas
+# ==========================================
+df_entrada = df[df[tipo_col].astype(str).str.lower() == "entrada"]
+df_saida = df[df[tipo_col].astype(str).str.lower().isin(["saída", "saida"])]
 
-total_entrada = entrada_df[valor_col].sum(skipna=True)
-total_saida   = saida_df[valor_col].sum(skipna=True)
+total_entrada = df_entrada[valor_col].sum()
+total_saida = df_saida[valor_col].sum()
+
+c1, c2, c3 = st.columns(3)
+c1.metric("Total de Entradas (filtrado)", f"R$ {total_entrada:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+c2.metric("Total de Saídas (filtrado)", f"R$ {total_saida:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+c3.metric("Saldo (filtrado)", f"R$ {(total_entrada - total_saida):,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
 
 # ===================================================================
 # Tabela filtrada + card de detalhes
