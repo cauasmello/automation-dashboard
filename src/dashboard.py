@@ -43,14 +43,6 @@ if not tipo_col or not valor_col:
 # ===================================================================
 # Normalizações de trabalho (ANTES de qualquer UI que dependa dos dados)
 # ===================================================================
-work_df = df_raw.copy()
-# Valor numérico
-work_df[valor_col] = (
-    work_df[valor_col]
-    .astype(str)
-    .str.replace(".", "", regex=False)
-    .str.replace(",", ".", regex=False)
-)
 work_df[valor_col] = pd.to_numeric(work_df[valor_col], errors="coerce")
 work_df = work_df.dropna(subset=[valor_col])
 
