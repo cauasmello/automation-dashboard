@@ -223,8 +223,8 @@ if data_col:
 # ==========================================
 # Métricas
 # ==========================================
-df_entrada = df[df[tipo_col].astype(str).str.lower() == "entrada"]
-df_saida = df[df[tipo_col].astype(str).str.lower().isin(["saída", "saida"])]
+df_entrada = work_df[work_df[tipo_col].astype(str).str.lower() == "entrada"]
+df_saida = work_df[work_df[tipo_col].astype(str).str.lower().isin(["saída", "saida"])]
 
 total_entrada = df_entrada[valor_col].sum()
 total_saida = df_saida[valor_col].sum()
