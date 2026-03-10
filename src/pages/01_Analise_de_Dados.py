@@ -30,8 +30,6 @@ if not data_col:
 
 df = df.dropna(subset=[data_col, valor_col]).copy()    
 
-st.caption("Página analítica: tendência, ranking e resumo gerencial")
-
 # ==========================================================
 # Helpers
 # ==========================================================
