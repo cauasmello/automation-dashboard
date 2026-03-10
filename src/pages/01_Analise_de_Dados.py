@@ -506,5 +506,17 @@ st.plotly_chart(fig, use_container_width=True)
 
 with st.expander("Ver dados do gráfico"):
     tabela = base[["label", "entrada", "saida", "lucro", "perc_lucro"]].copy()
+
     tabela.columns = ["Período", "Entrada", "Saída", "Lucro", "% Lucro"]
-    st.dataframe(tabela, use_container_width=True, hide_index=True)
+
+    st.dataframe(
+        tabela,
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            "Entrada": st.column_config.NumberColumn("Entrada", format="R$ %.2f"),
+            "Saída": st.column_config.NumberColumn("Saída", format="R$ %.2f"),
+            "Lucro": st.column_config.NumberColumn("Lucro", format="R$ %.2f"),
+            "% Lucro": st.column_config.NumberColumn("% Lucro", format="%.1f%%"),
+        }
+    )
