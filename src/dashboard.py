@@ -1,5 +1,5 @@
-import streamlit as st
 import pandas as pd
+import streamlit as st
 
 from utils import load_events, format_brl
 
@@ -24,20 +24,9 @@ data_col = cols["data"]
 
 st.caption("Página principal: visão operacional e consulta dos registros")
 
-# ==========================================================
-# Inicialização de estado
-# ==========================================================
-if "filtro_tipos" not in st.session_state:
-    st.session_state.filtro_tipos = []
-
-if "filtro_clientes" not in st.session_state:
-    st.session_state.filtro_clientes = []
-
-if "filtro_formas" not in st.session_state:
-    st.session_state.filtro_formas = []
 
 # ==========================================================
-# Função para aplicar filtros
+# Helpers
 # ==========================================================
 def aplicar_filtros(
     df: pd.DataFrame,
@@ -56,7 +45,7 @@ def aplicar_filtros(
         ].copy()
 
     if tipos:
-        out = out[out[tipo_col].isin(tipos)].copy()
+        out = out[out[tipo_col].astype(str).isin(tipos)].copy()
 
     if cliente_col and clientes:
         out = out[out[cliente_col].astype(str).isin(clientes)].copy()
@@ -66,12 +55,35 @@ def aplicar_filtros(
 
     return out
 
+
+def limpar_selecao_invalida(selecionados, disponiveis):
+    if not selecionados:
+        return []
+    return [x for x in selecionados if x in disponiveis]
+
+
 # ==========================================================
-# Filtro de período
+# Estado inicial
+# ==========================================================
+if "filtro_tipo" not in st.session_state:
+    st.session_state["filtro_tipo"] = []
+
+if "filtro_cliente" not in st.session_state:
+    st.session_state["filtro_cliente"] = []
+
+if "filtro_forma" not in st.session_state:
+    st.session_state["filtro_forma"] = []
+
+
+# ==========================================================
+# Sidebar - Período
 # ==========================================================
 st.sidebar.header("Filtros")
 
 df_base = df_raw.copy()
+
+inicio = None
+fim = None
 
 if data_col and df_base[data_col].notna().any():
     data_min = df_base[data_col].dropna().min().date()
@@ -90,113 +102,127 @@ if data_col and df_base[data_col].notna().any():
 
     if inicio > fim:
         inicio, fim = fim, inicio
-else:
-    inicio = None
-    fim = None
+
 
 # ==========================================================
-# Opções dinâmicas dos filtros
-# Cada filtro é calculado considerando os outros já selecionados
+# Leitura das seleções atuais
 # ==========================================================
+tipos_sel_atual = st.session_state["filtro_tipo"]
+clientes_sel_atual = st.session_state["filtro_cliente"]
+formas_sel_atual = st.session_state["filtro_forma"]
 
-# valores atuais salvos
-tipos_sel = st.session_state.filtro_tipos
-clientes_sel = st.session_state.filtro_clientes
-formas_sel = st.session_state.filtro_formas
 
-# ---- opções de tipo ----
-df_tipo_opcoes = aplicar_filtros(
+# ==========================================================
+# OPÇÕES DE TIPO
+# Data + Cliente + Forma
+# ==========================================================
+df_tipo = aplicar_filtros(
     df_base,
     inicio=inicio,
     fim=fim,
-    clientes=clientes_sel,
-    formas=formas_sel,
+    clientes=clientes_sel_atual,
+    formas=formas_sel_atual,
 )
+
 tipos_disponiveis = sorted(
-    df_tipo_opcoes[tipo_col].dropna().astype(str).unique().tolist()
+    df_tipo[tipo_col].dropna().astype(str).unique().tolist()
 )
 
-# limpa seleções inválidas
-tipos_sel = [x for x in tipos_sel if x in tipos_disponiveis]
-st.session_state.filtro_tipos = tipos_sel
+st.session_state["filtro_tipo"] = limpar_selecao_invalida(
+    st.session_state["filtro_tipo"],
+    tipos_disponiveis,
+)
 
-novos_tipos = st.sidebar.multiselect(
+st.sidebar.multiselect(
     "Tipo",
     options=tipos_disponiveis,
-    default=tipos_sel,
-    key="multiselect_tipo",
+    key="filtro_tipo",
 )
 
-# ---- opções de cliente ----
-if cliente_col:
-    df_cliente_opcoes = aplicar_filtros(
-        df_base,
-        inicio=inicio,
-        fim=fim,
-        tipos=novos_tipos,
-        formas=formas_sel,
-    )
-    clientes_disponiveis = sorted(
-        df_cliente_opcoes[cliente_col].dropna().astype(str).unique().tolist()
-    )
-
-    clientes_sel = [x for x in clientes_sel if x in clientes_disponiveis]
-    st.session_state.filtro_clientes = clientes_sel
-
-    novos_clientes = st.sidebar.multiselect(
-        "Cliente",
-        options=clientes_disponiveis,
-        default=clientes_sel,
-        key="multiselect_cliente",
-    )
-else:
-    novos_clientes = []
-
-# ---- opções de forma de pagamento ----
-if forma_pagamento_col:
-    df_forma_opcoes = aplicar_filtros(
-        df_base,
-        inicio=inicio,
-        fim=fim,
-        tipos=novos_tipos,
-        clientes=novos_clientes,
-    )
-    formas_disponiveis = sorted(
-        df_forma_opcoes[forma_pagamento_col].dropna().astype(str).unique().tolist()
-    )
-
-    formas_sel = [x for x in formas_sel if x in formas_disponiveis]
-    st.session_state.filtro_formas = formas_sel
-
-    novas_formas = st.sidebar.multiselect(
-        "Forma de pagamento",
-        options=formas_disponiveis,
-        default=formas_sel,
-        key="multiselect_forma",
-    )
-else:
-    novas_formas = []
-
-# atualiza estado final
-st.session_state.filtro_tipos = novos_tipos
-st.session_state.filtro_clientes = novos_clientes
-st.session_state.filtro_formas = novas_formas
 
 # ==========================================================
-# Dataframe final filtrado
+# OPÇÕES DE CLIENTE
+# Data + Tipo + Forma
+# ==========================================================
+tipos_sel_atual = st.session_state["filtro_tipo"]
+
+if cliente_col:
+    df_cliente = aplicar_filtros(
+        df_base,
+        inicio=inicio,
+        fim=fim,
+        tipos=tipos_sel_atual,
+        formas=formas_sel_atual,
+    )
+
+    clientes_disponiveis = sorted(
+        df_cliente[cliente_col].dropna().astype(str).unique().tolist()
+    )
+
+    st.session_state["filtro_cliente"] = limpar_selecao_invalida(
+        st.session_state["filtro_cliente"],
+        clientes_disponiveis,
+    )
+
+    st.sidebar.multiselect(
+        "Cliente",
+        options=clientes_disponiveis,
+        key="filtro_cliente",
+    )
+else:
+    clientes_disponiveis = []
+
+
+# ==========================================================
+# OPÇÕES DE FORMA
+# Data + Tipo + Cliente
+# ==========================================================
+tipos_sel_atual = st.session_state["filtro_tipo"]
+clientes_sel_atual = st.session_state["filtro_cliente"]
+
+if forma_pagamento_col:
+    df_forma = aplicar_filtros(
+        df_base,
+        inicio=inicio,
+        fim=fim,
+        tipos=tipos_sel_atual,
+        clientes=clientes_sel_atual,
+    )
+
+    formas_disponiveis = sorted(
+        df_forma[forma_pagamento_col].dropna().astype(str).unique().tolist()
+    )
+
+    st.session_state["filtro_forma"] = limpar_selecao_invalida(
+        st.session_state["filtro_forma"],
+        formas_disponiveis,
+    )
+
+    st.sidebar.multiselect(
+        "Forma de pagamento",
+        options=formas_disponiveis,
+        key="filtro_forma",
+    )
+else:
+    formas_disponiveis = []
+
+
+# ==========================================================
+# DataFrame final
 # ==========================================================
 work_df = aplicar_filtros(
     df_base,
     inicio=inicio,
     fim=fim,
-    tipos=novos_tipos,
-    clientes=novos_clientes,
-    formas=novas_formas,
+    tipos=st.session_state["filtro_tipo"],
+    clientes=st.session_state["filtro_cliente"],
+    formas=st.session_state["filtro_forma"],
 )
 
 if work_df.empty:
     st.info("Nenhum registro encontrado com os filtros aplicados.")
     st.stop()
+
 
 # ==========================================================
 # Métricas
@@ -215,6 +241,7 @@ c3.metric("Saldo", format_brl(saldo))
 c4.metric("Registros", f"{len(work_df)}")
 
 st.divider()
+
 
 # ==========================================================
 # Tabela
@@ -240,11 +267,13 @@ try:
 except Exception:
     selected_rows = []
 
+
 def val_or_blank(row_obj, col_name):
     if not col_name or col_name not in row_obj.index:
         return ""
     value = row_obj[col_name]
     return "" if pd.isna(value) else str(value)
+
 
 if len(selected_rows) == 1:
     st.subheader("Detalhes do registro")
