@@ -243,26 +243,27 @@ if work_df.empty:
 # ==========================================================
 st.subheader("Evolução de Entradas e Saídas")
 
-granularidade = st.radio(
+granularidade_evolucao = st.radio(
     "Exibir por:",
     options=["Semana", "Mês", "Trimestre", "Ano"],
     horizontal=True,
+    key="radio_evolucao_entradas_saidas",
 )
 
 # Padroniza tipo
 df[tipo_col] = df[tipo_col].astype(str).str.strip().str.lower()
 
 # Cria coluna de agrupamento conforme granularidade
-if granularidade == "Semana":
+if granularidade_evolucao == "Semana":
     # início da semana
     df["periodo"] = df[data_col].dt.to_period("W").apply(lambda r: r.start_time)
     titulo_x = "Semana"
 
-elif granularidade == "Mês":
+elif granularidade_evolucao == "Mês":
     df["periodo"] = df[data_col].dt.to_period("M").dt.to_timestamp()
     titulo_x = "Mês"
 
-elif granularidade == "Trimestre":
+elif granularidade_evolucao == "Trimestre":
     df["periodo"] = df[data_col].dt.to_period("Q").dt.to_timestamp()
     titulo_x = "Trimestre"
 
@@ -301,13 +302,13 @@ if grafico_df.empty:
     st.stop()
 
 # Rótulo mais amigável para eixo X
-if granularidade == "Semana":
+if granularidade_evolucao == "Semana":
     grafico_df["label"] = grafico_df["periodo"].dt.strftime("%d/%m/%Y")
 
-elif granularidade == "Mês":
+elif granularidade_evolucao == "Mês":
     grafico_df["label"] = grafico_df["periodo"].dt.strftime("%m/%Y")
 
-elif granularidade == "Trimestre":
+elif granularidade_evolucao == "Trimestre":
     grafico_df["label"] = (
         "T"
         + grafico_df["periodo"].dt.quarter.astype(str)
@@ -378,24 +379,25 @@ df[tipo_col] = df[tipo_col].astype(str).str.strip().str.lower()
 
 st.subheader("Percentual de Lucro")
 
-granularidade = st.radio(
+granularidade_lucro = st.radio(
     "Exibir por:",
     options=["Semana", "Mês", "Trimestre", "Ano"],
     horizontal=True,
+    key="radio_percentual_lucro",
 )
 
 # ==========================================================
 # Define período
 # ==========================================================
-if granularidade == "Semana":
+if granularidade_lucro == "Semana":
     df["periodo"] = df[data_col].dt.to_period("W").apply(lambda r: r.start_time)
     titulo_x = "Semana"
 
-elif granularidade == "Mês":
+elif granularidade_lucro == "Mês":
     df["periodo"] = df[data_col].dt.to_period("M").dt.to_timestamp()
     titulo_x = "Mês"
 
-elif granularidade == "Trimestre":
+elif granularidade_lucro == "Trimestre":
     df["periodo"] = df[data_col].dt.to_period("Q").dt.to_timestamp()
     titulo_x = "Trimestre"
 
@@ -440,13 +442,13 @@ if base.empty:
 # ==========================================================
 # Label do eixo X
 # ==========================================================
-if granularidade == "Semana":
+if granularidade_lucro == "Semana":
     base["label"] = base["periodo"].dt.strftime("%d/%m/%Y")
 
-elif granularidade == "Mês":
+elif granularidade_lucro == "Mês":
     base["label"] = base["periodo"].dt.strftime("%m/%Y")
 
-elif granularidade == "Trimestre":
+elif granularidade_lucro == "Trimestre":
     base["label"] = (
         "T"
         + base["periodo"].dt.quarter.astype(str)
