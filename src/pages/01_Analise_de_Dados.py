@@ -23,6 +23,12 @@ cliente_col = cols["cliente"]
 forma_pagamento_col = cols["forma_pagamento"]
 data_col = cols["data"]
 
+if not data_col:
+    st.warning("A base não possui coluna de data.")
+    st.stop()
+
+df = df.dropna(subset=[data_col, valor_col]).copy()    
+
 st.caption("Página analítica: tendência, ranking e resumo gerencial")
 
 # ==========================================================
@@ -232,107 +238,127 @@ if work_df.empty:
     st.stop()
 
 
-# ==========================================================
-# Colunas auxiliares
-# ==========================================================
-if data_col:
-    df["ano_mes"] = df[data_col].dt.to_period("M").astype(str)
-else:
-    df["ano_mes"] = "Sem data"
+st.subheader("Evolução de Entradas e Saídas")
 
-# ==========================================================
-# Métricas principais
-# ==========================================================
-entradas = df.loc[df[tipo_col] == "entrada", valor_col].sum()
-saidas = df.loc[df[tipo_col].isin(["saída", "saida"]), valor_col].sum()
-saldo = entradas - saidas
-ticket_medio = df[valor_col].mean()
+granularidade = st.radio(
+    "Exibir por:",
+    options=["Semana", "Mês", "Trimestre", "Ano"],
+    horizontal=True,
+)
 
-m1, m2, m3, m4 = st.columns(4)
-m1.metric("Entradas", format_brl(entradas))
-m2.metric("Saídas", format_brl(saidas))
-m3.metric("Saldo", format_brl(saldo))
-m4.metric("Ticket médio", format_brl(ticket_medio))
+# Padroniza tipo
+df[tipo_col] = df[tipo_col].astype(str).str.strip().str.lower()
 
-st.divider()
+# Cria coluna de agrupamento conforme granularidade
+if granularidade == "Semana":
+    # início da semana
+    df["periodo"] = df[data_col].dt.to_period("W").apply(lambda r: r.start_time)
+    titulo_x = "Semana"
 
-# ==========================================================
-# Evolução mensal
-# ==========================================================
-st.subheader("Evolução mensal")
+elif granularidade == "Mês":
+    df["periodo"] = df[data_col].dt.to_period("M").dt.to_timestamp()
+    titulo_x = "Mês"
 
-resumo_mensal = (
-    df.groupby(["ano_mes", tipo_col], as_index=False)[valor_col]
+elif granularidade == "Trimestre":
+    df["periodo"] = df[data_col].dt.to_period("Q").dt.to_timestamp()
+    titulo_x = "Trimestre"
+
+else:  # Ano
+    df["periodo"] = df[data_col].dt.to_period("Y").dt.to_timestamp()
+    titulo_x = "Ano"
+
+# Separa entradas e saídas
+df_entrada = df[df[tipo_col] == "entrada"].copy()
+df_saida = df[df[tipo_col].isin(["saída", "saida"])].copy()
+
+entrada_agg = (
+    df_entrada.groupby("periodo", as_index=False)[valor_col]
     .sum()
-    .pivot(index="ano_mes", columns=tipo_col, values=valor_col)
-    .fillna(0)
-    .reset_index()
+    .rename(columns={valor_col: "entrada"})
 )
 
-if "entrada" not in resumo_mensal.columns:
-    resumo_mensal["entrada"] = 0
-
-saida_calc = 0
-if "saida" in resumo_mensal.columns:
-    saida_calc = saida_calc + resumo_mensal["saida"]
-if "saída" in resumo_mensal.columns:
-    saida_calc = saida_calc + resumo_mensal["saída"]
-
-resumo_mensal["saida_total"] = saida_calc
-resumo_mensal["saldo"] = resumo_mensal["entrada"] - resumo_mensal["saida_total"]
-
-st.line_chart(
-    resumo_mensal.set_index("ano_mes")[["entrada", "saida_total", "saldo"]]
+saida_agg = (
+    df_saida.groupby("periodo", as_index=False)[valor_col]
+    .sum()
+    .rename(columns={valor_col: "saida"})
 )
 
-# ==========================================================
-# Ranking por cliente
-# ==========================================================
-if cliente_col:
-    st.subheader("Top 10 clientes por valor movimentado")
-    ranking_cliente = (
-        df.groupby(cliente_col, as_index=False)[valor_col]
-        .sum()
-        .sort_values(valor_col, ascending=False)
-        .head(10)
+# Junta tudo em uma base única
+grafico_df = pd.merge(
+    entrada_agg,
+    saida_agg,
+    on="periodo",
+    how="outer",
+).fillna(0)
+
+grafico_df = grafico_df.sort_values("periodo").reset_index(drop=True)
+
+if grafico_df.empty:
+    st.info("Não há dados para o período selecionado.")
+    st.stop()
+
+# Rótulo mais amigável para eixo X
+if granularidade == "Semana":
+    grafico_df["label"] = grafico_df["periodo"].dt.strftime("%d/%m/%Y")
+
+elif granularidade == "Mês":
+    grafico_df["label"] = grafico_df["periodo"].dt.strftime("%m/%Y")
+
+elif granularidade == "Trimestre":
+    grafico_df["label"] = (
+        "T"
+        + grafico_df["periodo"].dt.quarter.astype(str)
+        + "/"
+        + grafico_df["periodo"].dt.year.astype(str)
     )
 
-    if not ranking_cliente.empty:
-        st.bar_chart(ranking_cliente.set_index(cliente_col)[valor_col])
+else:
+    grafico_df["label"] = grafico_df["periodo"].dt.strftime("%Y")
 
-# ==========================================================
-# Ranking por descrição
-# ==========================================================
-if descricao_col:
-    st.subheader("Top 10 descrições")
-    ranking_desc = (
-        df.groupby(descricao_col, as_index=False)[valor_col]
-        .sum()
-        .sort_values(valor_col, ascending=False)
-        .head(10)
+# Gráfico estilo Power BI
+fig = go.Figure()
+
+fig.add_trace(
+    go.Scatter(
+        x=grafico_df["label"],
+        y=grafico_df["entrada"],
+        mode="lines+markers",
+        name="Entrada",
+        line=dict(color="green", width=3),
+        marker=dict(size=7),
+        hovertemplate="<b>Entrada</b><br>Período: %{x}<br>Valor: R$ %{y:,.2f}<extra></extra>",
     )
-
-    st.dataframe(ranking_desc, use_container_width=True, hide_index=True)
-
-# ==========================================================
-# Resumo por tipo
-# ==========================================================
-st.subheader("Resumo por tipo")
-
-resumo_tipo = (
-    df.groupby(tipo_col, as_index=False)
-    .agg(
-        quantidade=(valor_col, "count"),
-        valor_total=(valor_col, "sum"),
-        valor_medio=(valor_col, "mean"),
-    )
-    .sort_values("valor_total", ascending=False)
 )
 
-st.dataframe(resumo_tipo, use_container_width=True, hide_index=True)
+fig.add_trace(
+    go.Scatter(
+        x=grafico_df["label"],
+        y=grafico_df["saida"],
+        mode="lines+markers",
+        name="Saída",
+        line=dict(color="red", width=3),
+        marker=dict(size=7),
+        hovertemplate="<b>Saída</b><br>Período: %{x}<br>Valor: R$ %{y:,.2f}<extra></extra>",
+    )
+)
 
-# ==========================================================
-# Resumo mensal detalhado
-# ==========================================================
-st.subheader("Resumo mensal detalhado")
-st.dataframe(resumo_mensal, use_container_width=True, hide_index=True)
+fig.update_layout(
+    title="Evolução de Entradas e Saídas",
+    xaxis_title=titulo_x,
+    yaxis_title="Valor",
+    hovermode="x unified",
+    legend_title="Tipo",
+    template="plotly_white",
+    height=500,
+    margin=dict(l=20, r=20, t=60, b=20),
+)
+
+fig.update_yaxes(tickprefix="R$ ")
+
+st.plotly_chart(fig, use_container_width=True)
+
+# Opcional: tabela de apoio abaixo
+with st.expander("Ver dados do gráfico"):
+    tabela = grafico_df[["label", "entrada", "saida"]].copy()
+    tabela.columns = ["Período", "Entrada", "Saída"]
+    st.dataframe(tabela, use_container_width=True, hide_index=True)
