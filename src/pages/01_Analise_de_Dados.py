@@ -20,6 +20,7 @@ tipo_col = cols["tipo"]
 valor_col = cols["valor"]
 descricao_col = cols["descricao"]
 cliente_col = cols["cliente"]
+forma_pagamento_col = cols["forma_pagamento"]
 data_col = cols["data"]
 
 st.caption("Página analítica: tendência, ranking e resumo gerencial")
@@ -79,7 +80,7 @@ if "filtro_forma" not in st.session_state:
 # ==========================================================
 st.sidebar.header("Filtros")
 
-df_base = df_raw.copy()
+df_base = df.copy()
 inicio = None
 fim = None
 
