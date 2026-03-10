@@ -367,6 +367,21 @@ with st.expander("Ver dados do gráfico"):
     tabela.columns = ["Período", "Entrada", "Saída"]
     st.dataframe(tabela, use_container_width=True, hide_index=True)
 
+with st.expander("Ver dados do gráfico"):
+    tabela = grafico_df[["label", "entrada", "saida"]].copy()
+
+    tabela.columns = ["Período", "Entrada", "Saída"]
+
+    st.dataframe(
+        tabela,
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            "Entrada": st.column_config.NumberColumn("Entrada", format="R$ %.2f"),
+            "Saída": st.column_config.NumberColumn("Saída", format="R$ %.2f")
+        }
+    )    
+
 # ==========================================================
 # Gráfico: "Evolução do Percentual de Lucro"
 # ==========================================================
