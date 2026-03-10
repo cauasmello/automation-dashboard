@@ -238,7 +238,9 @@ if work_df.empty:
     st.info("Nenhum registro encontrado com os filtros aplicados.")
     st.stop()
 
-
+# ==========================================================
+# Gráfico: "Evolução de Entradas e Saídas"
+# ==========================================================
 st.subheader("Evolução de Entradas e Saídas")
 
 granularidade = st.radio(
@@ -362,4 +364,145 @@ st.plotly_chart(fig, use_container_width=True)
 with st.expander("Ver dados do gráfico"):
     tabela = grafico_df[["label", "entrada", "saida"]].copy()
     tabela.columns = ["Período", "Entrada", "Saída"]
+    st.dataframe(tabela, use_container_width=True, hide_index=True)
+
+# ==========================================================
+# Gráfico: "Evolução do Percentual de Lucro"
+# ==========================================================
+
+if df.empty:
+    st.info("Não há dados suficientes para gerar o gráfico.")
+    st.stop()
+
+df[tipo_col] = df[tipo_col].astype(str).str.strip().str.lower()
+
+st.subheader("Percentual de Lucro")
+
+granularidade = st.radio(
+    "Exibir por:",
+    options=["Semana", "Mês", "Trimestre", "Ano"],
+    horizontal=True,
+)
+
+# ==========================================================
+# Define período
+# ==========================================================
+if granularidade == "Semana":
+    df["periodo"] = df[data_col].dt.to_period("W").apply(lambda r: r.start_time)
+    titulo_x = "Semana"
+
+elif granularidade == "Mês":
+    df["periodo"] = df[data_col].dt.to_period("M").dt.to_timestamp()
+    titulo_x = "Mês"
+
+elif granularidade == "Trimestre":
+    df["periodo"] = df[data_col].dt.to_period("Q").dt.to_timestamp()
+    titulo_x = "Trimestre"
+
+else:
+    df["periodo"] = df[data_col].dt.to_period("Y").dt.to_timestamp()
+    titulo_x = "Ano"
+
+# ==========================================================
+# Agrega entradas e saídas por período
+# ==========================================================
+df_entrada = df[df[tipo_col] == "entrada"].copy()
+df_saida = df[df[tipo_col].isin(["saída", "saida"])].copy()
+
+entrada_agg = (
+    df_entrada.groupby("periodo", as_index=False)[valor_col]
+    .sum()
+    .rename(columns={valor_col: "entrada"})
+)
+
+saida_agg = (
+    df_saida.groupby("periodo", as_index=False)[valor_col]
+    .sum()
+    .rename(columns={valor_col: "saida"})
+)
+
+base = pd.merge(entrada_agg, saida_agg, on="periodo", how="outer").fillna(0)
+
+base["lucro"] = base["entrada"] - base["saida"]
+
+# Evita divisão por zero
+base["perc_lucro"] = base.apply(
+    lambda row: ((row["lucro"] / row["entrada"]) * 100) if row["entrada"] != 0 else 0,
+    axis=1,
+)
+
+base = base.sort_values("periodo").reset_index(drop=True)
+
+if base.empty:
+    st.info("Não há dados para gerar o gráfico.")
+    st.stop()
+
+# ==========================================================
+# Label do eixo X
+# ==========================================================
+if granularidade == "Semana":
+    base["label"] = base["periodo"].dt.strftime("%d/%m/%Y")
+
+elif granularidade == "Mês":
+    base["label"] = base["periodo"].dt.strftime("%m/%Y")
+
+elif granularidade == "Trimestre":
+    base["label"] = (
+        "T"
+        + base["periodo"].dt.quarter.astype(str)
+        + "/"
+        + base["periodo"].dt.year.astype(str)
+    )
+
+else:
+    base["label"] = base["periodo"].dt.strftime("%Y")
+
+# ==========================================================
+# Cor da barra
+# ==========================================================
+base["cor"] = base["perc_lucro"].apply(lambda x: "green" if x >= 0 else "red")
+
+# ==========================================================
+# Gráfico
+# ==========================================================
+fig = go.Figure()
+
+fig.add_trace(
+    go.Bar(
+        x=base["label"],
+        y=base["perc_lucro"],
+        marker_color=base["cor"],
+        text=base["perc_lucro"].round(1).astype(str) + "%",
+        textposition="outside",
+        hovertemplate=(
+            "<b>Período:</b> %{x}<br>"
+            "<b>% Lucro:</b> %{y:.2f}%<br>"
+            "<extra></extra>"
+        ),
+        name="% Lucro",
+    )
+)
+
+fig.update_layout(
+    title="Percentual de Lucro por Período",
+    xaxis_title=titulo_x,
+    yaxis_title="% Lucro",
+    template="plotly_white",
+    height=550,
+    margin=dict(l=20, r=20, t=60, b=20),
+    showlegend=False,
+)
+
+fig.update_yaxes(
+    ticksuffix="%",
+    zeroline=True,
+    zerolinewidth=2,
+    zerolinecolor="gray",
+)
+
+st.plotly_chart(fig, use_container_width=True)
+
+with st.expander("Ver dados do gráfico"):
+    tabela = base[["label", "entrada", "saida", "lucro", "perc_lucro"]].copy()
+    tabela.columns = ["Período", "Entrada", "Saída", "Lucro", "% Lucro"]
     st.dataframe(tabela, use_container_width=True, hide_index=True)
