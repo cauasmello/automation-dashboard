@@ -1,9 +1,7 @@
-import datetime as dt
-import pandas as pd
 import streamlit as st
+import pandas as pd
 
 from utils import load_events, format_brl
-
 
 st.set_page_config(page_title="Dashboard Financeiro", layout="wide")
 st.title("Dashboard - Entradas vs Saídas")
@@ -17,8 +15,6 @@ except ValueError as e:
     st.error(str(e))
     st.stop()
 
-work_df = df_raw.copy()
-
 tipo_col = cols["tipo"]
 valor_col = cols["valor"]
 descricao_col = cols["descricao"]
@@ -29,13 +25,57 @@ data_col = cols["data"]
 st.caption("Página principal: visão operacional e consulta dos registros")
 
 # ==========================================================
-# Filtros laterais
+# Inicialização de estado
+# ==========================================================
+if "filtro_tipos" not in st.session_state:
+    st.session_state.filtro_tipos = []
+
+if "filtro_clientes" not in st.session_state:
+    st.session_state.filtro_clientes = []
+
+if "filtro_formas" not in st.session_state:
+    st.session_state.filtro_formas = []
+
+# ==========================================================
+# Função para aplicar filtros
+# ==========================================================
+def aplicar_filtros(
+    df: pd.DataFrame,
+    inicio=None,
+    fim=None,
+    tipos=None,
+    clientes=None,
+    formas=None,
+):
+    out = df.copy()
+
+    if data_col and inicio and fim and out[data_col].notna().any():
+        out = out[
+            (out[data_col].dt.date >= inicio) &
+            (out[data_col].dt.date <= fim)
+        ].copy()
+
+    if tipos:
+        out = out[out[tipo_col].isin(tipos)].copy()
+
+    if cliente_col and clientes:
+        out = out[out[cliente_col].astype(str).isin(clientes)].copy()
+
+    if forma_pagamento_col and formas:
+        out = out[out[forma_pagamento_col].astype(str).isin(formas)].copy()
+
+    return out
+
+# ==========================================================
+# Filtro de período
 # ==========================================================
 st.sidebar.header("Filtros")
 
-if data_col and work_df[data_col].notna().any():
-    data_min = work_df[data_col].dropna().min().date()
-    data_max = work_df[data_col].dropna().max().date()
+df_base = df_raw.copy()
+
+if data_col and df_base[data_col].notna().any():
+    data_min = df_base[data_col].dropna().min().date()
+    data_max = df_base[data_col].dropna().max().date()
 
     periodo = st.sidebar.date_input(
         "Período",
@@ -50,31 +90,109 @@ if data_col and work_df[data_col].notna().any():
 
     if inicio > fim:
         inicio, fim = fim, inicio
+else:
+    inicio = None
+    fim = None
 
-    mask_data = (
-        (work_df[data_col].dt.date >= inicio) &
-        (work_df[data_col].dt.date <= fim)
-    )
-    work_df = work_df.loc[mask_data].copy()
+# ==========================================================
+# Opções dinâmicas dos filtros
+# Cada filtro é calculado considerando os outros já selecionados
+# ==========================================================
 
-tipos = sorted(work_df[tipo_col].dropna().astype(str).unique().tolist())
-tipos_sel = st.sidebar.multiselect("Tipo", tipos, default=tipos)
-if tipos_sel:
-    work_df = work_df[work_df[tipo_col].isin(tipos_sel)].copy()
+# valores atuais salvos
+tipos_sel = st.session_state.filtro_tipos
+clientes_sel = st.session_state.filtro_clientes
+formas_sel = st.session_state.filtro_formas
 
+# ---- opções de tipo ----
+df_tipo_opcoes = aplicar_filtros(
+    df_base,
+    inicio=inicio,
+    fim=fim,
+    clientes=clientes_sel,
+    formas=formas_sel,
+)
+tipos_disponiveis = sorted(
+    df_tipo_opcoes[tipo_col].dropna().astype(str).unique().tolist()
+)
+
+# limpa seleções inválidas
+tipos_sel = [x for x in tipos_sel if x in tipos_disponiveis]
+st.session_state.filtro_tipos = tipos_sel
+
+novos_tipos = st.sidebar.multiselect(
+    "Tipo",
+    options=tipos_disponiveis,
+    default=tipos_sel,
+    key="multiselect_tipo",
+)
+
+# ---- opções de cliente ----
 if cliente_col:
-    clientes = sorted(work_df[cliente_col].dropna().astype(str).unique().tolist())
-    clientes_sel = st.sidebar.multiselect("Cliente", clientes, default=clientes)
-    if clientes_sel:
-        work_df = work_df[work_df[cliente_col].astype(str).isin(clientes_sel)].copy()
+    df_cliente_opcoes = aplicar_filtros(
+        df_base,
+        inicio=inicio,
+        fim=fim,
+        tipos=novos_tipos,
+        formas=formas_sel,
+    )
+    clientes_disponiveis = sorted(
+        df_cliente_opcoes[cliente_col].dropna().astype(str).unique().tolist()
+    )
 
+    clientes_sel = [x for x in clientes_sel if x in clientes_disponiveis]
+    st.session_state.filtro_clientes = clientes_sel
+
+    novos_clientes = st.sidebar.multiselect(
+        "Cliente",
+        options=clientes_disponiveis,
+        default=clientes_sel,
+        key="multiselect_cliente",
+    )
+else:
+    novos_clientes = []
+
+# ---- opções de forma de pagamento ----
 if forma_pagamento_col:
-    formas = sorted(work_df[forma_pagamento_col].dropna().astype(str).unique().tolist())
-    formas_sel = st.sidebar.multiselect("Forma de pagamento", formas, default=formas)
-    if formas_sel:
-        work_df = work_df[
-            work_df[forma_pagamento_col].astype(str).isin(formas_sel)
-        ].copy()
+    df_forma_opcoes = aplicar_filtros(
+        df_base,
+        inicio=inicio,
+        fim=fim,
+        tipos=novos_tipos,
+        clientes=novos_clientes,
+    )
+    formas_disponiveis = sorted(
+        df_forma_opcoes[forma_pagamento_col].dropna().astype(str).unique().tolist()
+    )
+
+    formas_sel = [x for x in formas_sel if x in formas_disponiveis]
+    st.session_state.filtro_formas = formas_sel
+
+    novas_formas = st.sidebar.multiselect(
+        "Forma de pagamento",
+        options=formas_disponiveis,
+        default=formas_sel,
+        key="multiselect_forma",
+    )
+else:
+    novas_formas = []
+
+# atualiza estado final
+st.session_state.filtro_tipos = novos_tipos
+st.session_state.filtro_clientes = novos_clientes
+st.session_state.filtro_formas = novas_formas
+
+# ==========================================================
+# Dataframe final filtrado
+# ==========================================================
+work_df = aplicar_filtros(
+    df_base,
+    inicio=inicio,
+    fim=fim,
+    tipos=novos_tipos,
+    clientes=novos_clientes,
+    formas=novas_formas,
+)
 
 if work_df.empty:
     st.info("Nenhum registro encontrado com os filtros aplicados.")
