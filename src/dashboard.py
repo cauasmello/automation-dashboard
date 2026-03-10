@@ -81,11 +81,11 @@ if "filtro_forma" not in st.session_state:
 st.sidebar.header("Filtros")
 
 df_base = df_raw.copy()
-
 inicio = None
 fim = None
 
 if data_col and df_base[data_col].notna().any():
+
     data_min = df_base[data_col].dropna().min().date()
     data_max = df_base[data_col].dropna().max().date()
 
@@ -95,13 +95,21 @@ if data_col and df_base[data_col].notna().any():
         format="DD/MM/YYYY",
     )
 
-    if isinstance(periodo, tuple) and len(periodo) == 2:
-        inicio, fim = periodo
-    else:
-        inicio = fim = periodo
+    # usuário selecionou apenas uma data
+    if isinstance(periodo, tuple) and len(periodo) == 1:
+        st.warning("Selecione a data final para completar o intervalo.")
+        st.stop()
 
-    if inicio > fim:
-        inicio, fim = fim, inicio
+    # intervalo correto
+    elif isinstance(periodo, tuple) and len(periodo) == 2:
+        inicio, fim = periodo
+
+        if inicio > fim:
+            inicio, fim = fim, inicio
+
+    else:
+        st.warning("Selecione um intervalo de datas válido.")
+        st.stop()
 
 
 # ==========================================================
