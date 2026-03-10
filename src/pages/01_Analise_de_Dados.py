@@ -362,10 +362,6 @@ fig.update_yaxes(tickprefix="R$ ")
 st.plotly_chart(fig, use_container_width=True)
 
 # Opcional: tabela de apoio abaixo
-with st.expander("Ver dados do gráfico"):
-    tabela = grafico_df[["label", "entrada", "saida"]].copy()
-    tabela.columns = ["Período", "Entrada", "Saída"]
-    st.dataframe(tabela, use_container_width=True, hide_index=True)
 
 with st.expander("Ver dados do gráfico"):
     tabela = grafico_df[["label", "entrada", "saida"]].copy()
