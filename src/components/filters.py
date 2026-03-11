@@ -12,12 +12,6 @@ def aplicar_filtros(
     produto_col: str | None = None,
     state_prefix: str = "default",
 ) -> pd.DataFrame:
-    """
-    Filtros em cascata:
-    - Data restringe todos os demais
-    - Cada filtro restringe os outros filtros categóricos
-    """
-
     def _state_key(nome: str) -> str:
         return f"{state_prefix}_{nome}"
 
@@ -69,16 +63,12 @@ def aplicar_filtros(
 
     if tipo_key not in st.session_state:
         st.session_state[tipo_key] = []
-
     if cliente_key not in st.session_state:
         st.session_state[cliente_key] = []
-
     if forma_key not in st.session_state:
         st.session_state[forma_key] = []
-
     if categoria_key not in st.session_state:
         st.session_state[categoria_key] = []
-
     if produto_key not in st.session_state:
         st.session_state[produto_key] = []
 
@@ -117,10 +107,6 @@ def aplicar_filtros(
     categorias_sel_atual = st.session_state[categoria_key]
     produtos_sel_atual = st.session_state[produto_key]
 
-    # ==========================================================
-    # TIPO
-    # Data + Cliente + Forma + Categoria + Produto
-    # ==========================================================
     if tipo_col:
         df_tipo = _aplicar(
             df_base,
@@ -150,10 +136,6 @@ def aplicar_filtros(
 
     tipos_sel_atual = st.session_state[tipo_key]
 
-    # ==========================================================
-    # CLIENTE
-    # Data + Tipo + Forma + Categoria + Produto
-    # ==========================================================
     if cliente_col:
         df_cliente = _aplicar(
             df_base,
@@ -184,10 +166,6 @@ def aplicar_filtros(
     tipos_sel_atual = st.session_state[tipo_key]
     clientes_sel_atual = st.session_state[cliente_key]
 
-    # ==========================================================
-    # FORMA DE PAGAMENTO
-    # Data + Tipo + Cliente + Categoria + Produto
-    # ==========================================================
     if forma_pagamento_col:
         df_forma = _aplicar(
             df_base,
@@ -219,10 +197,6 @@ def aplicar_filtros(
     clientes_sel_atual = st.session_state[cliente_key]
     formas_sel_atual = st.session_state[forma_key]
 
-    # ==========================================================
-    # CATEGORIA
-    # Data + Tipo + Cliente + Forma + Produto
-    # ==========================================================
     if categoria_col:
         df_categoria = _aplicar(
             df_base,
@@ -255,10 +229,6 @@ def aplicar_filtros(
     formas_sel_atual = st.session_state[forma_key]
     categorias_sel_atual = st.session_state[categoria_key]
 
-    # ==========================================================
-    # PRODUTO
-    # Data + Tipo + Cliente + Forma + Categoria
-    # ==========================================================
     if produto_col:
         df_produto = _aplicar(
             df_base,
@@ -286,9 +256,6 @@ def aplicar_filtros(
             placeholder="Selecione",
         )
 
-    # ==========================================================
-    # DATAFRAME FINAL
-    # ==========================================================
     work_df = _aplicar(
         df_base,
         inicio=inicio,
