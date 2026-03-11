@@ -8,4 +8,4 @@
 ### Rodar
 - python .\src\telegram_to_sheets.py
 - python .\src\export_to_parquet.py
-- python .dashboard.pystreamlit run src/dashboard.py
+- streamlit run src/dashboard.py
