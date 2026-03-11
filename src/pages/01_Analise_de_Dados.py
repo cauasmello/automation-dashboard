@@ -248,30 +248,29 @@ granularidade_evolucao = st.radio(
     key="radio_evolucao_entradas_saidas",
 )
 
-# Padroniza tipo
-df[tipo_col] = df[tipo_col].astype(str).str.strip().str.lower()
+grafico_df_base = work_df.copy()
 
-# Cria coluna de agrupamento conforme granularidade
+# Padroniza tipo
+grafico_df_base[tipo_col] = grafico_df_base[tipo_col].astype(str).str.strip().str.lower()
+
 if granularidade_evolucao == "Semana":
-    # início da semana
-    df["periodo"] = df[data_col].dt.to_period("W").apply(lambda r: r.start_time)
+    grafico_df_base["periodo"] = grafico_df_base[data_col].dt.to_period("W").apply(lambda r: r.start_time)
     titulo_x = "Semana"
 
 elif granularidade_evolucao == "Mês":
-    df["periodo"] = df[data_col].dt.to_period("M").dt.to_timestamp()
+    grafico_df_base["periodo"] = grafico_df_base[data_col].dt.to_period("M").dt.to_timestamp()
     titulo_x = "Mês"
 
 elif granularidade_evolucao == "Trimestre":
-    df["periodo"] = df[data_col].dt.to_period("Q").dt.to_timestamp()
+    grafico_df_base["periodo"] = grafico_df_base[data_col].dt.to_period("Q").dt.to_timestamp()
     titulo_x = "Trimestre"
 
-else:  # Ano
-    df["periodo"] = df[data_col].dt.to_period("Y").dt.to_timestamp()
+else:
+    grafico_df_base["periodo"] = grafico_df_base[data_col].dt.to_period("Y").dt.to_timestamp()
     titulo_x = "Ano"
 
-# Separa entradas e saídas
-df_entrada = df[df[tipo_col] == "entrada"].copy()
-df_saida = df[df[tipo_col].isin(["saída", "saida"])].copy()
+df_entrada = grafico_df_base[grafico_df_base[tipo_col] == "entrada"].copy()
+df_saida = grafico_df_base[grafico_df_base[tipo_col].isin(["saída", "saida"])].copy()
 
 entrada_agg = (
     df_entrada.groupby("periodo", as_index=False)[valor_col]
@@ -384,7 +383,8 @@ if df.empty:
     st.info("Não há dados suficientes para gerar o gráfico.")
     st.stop()
 
-df[tipo_col] = df[tipo_col].astype(str).str.strip().str.lower()
+base_lucro_df = work_df.copy()
+base_lucro_df[tipo_col] = base_lucro_df[tipo_col].astype(str).str.strip().str.lower()
 
 st.subheader("Percentual de Lucro")
 
@@ -399,26 +399,26 @@ granularidade_lucro = st.radio(
 # Define período
 # ==========================================================
 if granularidade_lucro == "Semana":
-    df["periodo"] = df[data_col].dt.to_period("W").apply(lambda r: r.start_time)
+    base_lucro_df["periodo"] = base_lucro_df[data_col].dt.to_period("W").apply(lambda r: r.start_time)
     titulo_x = "Semana"
 
 elif granularidade_lucro == "Mês":
-    df["periodo"] = df[data_col].dt.to_period("M").dt.to_timestamp()
+    base_lucro_df["periodo"] = base_lucro_df[data_col].dt.to_period("M").dt.to_timestamp()
     titulo_x = "Mês"
 
 elif granularidade_lucro == "Trimestre":
-    df["periodo"] = df[data_col].dt.to_period("Q").dt.to_timestamp()
+    base_lucro_df["periodo"] = base_lucro_df[data_col].dt.to_period("Q").dt.to_timestamp()
     titulo_x = "Trimestre"
 
 else:
-    df["periodo"] = df[data_col].dt.to_period("Y").dt.to_timestamp()
+    base_lucro_df["periodo"] = base_lucro_df[data_col].dt.to_period("Y").dt.to_timestamp()
     titulo_x = "Ano"
 
 # ==========================================================
 # Agrega entradas e saídas por período
 # ==========================================================
-df_entrada = df[df[tipo_col] == "entrada"].copy()
-df_saida = df[df[tipo_col].isin(["saída", "saida"])].copy()
+df_entrada = base_lucro_df[base_lucro_df[tipo_col] == "entrada"].copy()
+df_saida = base_lucro_df[base_lucro_df[tipo_col].isin(["saída", "saida"])].copy()
 
 entrada_agg = (
     df_entrada.groupby("periodo", as_index=False)[valor_col]
