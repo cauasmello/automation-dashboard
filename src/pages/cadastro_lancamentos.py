@@ -1,14 +1,22 @@
 from datetime import date
-import streamlit as st
+
+import gspread
 import pandas as pd
+import streamlit as st
+from google.oauth2.service_account import Credentials
+
 
 st.title("Cadastro de Lançamentos")
-st.caption("Preencha os campos abaixo para registrar um novo lançamento.")
+st.caption("Registre um novo lançamento com campos padronizados.")
 
 # ==========================================================
-# OPÇÕES PRÉ-DEFINIDAS
-# Troque essas listas pelos valores reais do seu negócio
+# CONFIGURAÇÕES
 # ==========================================================
+SCOPES = [
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/drive",
+]
+
 TIPOS = ["entrada", "saida"]
 
 CLIENTES = [
@@ -39,6 +47,44 @@ PRODUTOS = [
 ]
 
 # ==========================================================
+# CONEXÃO GOOGLE SHEETS
+# ==========================================================
+@st.cache_resource
+def conectar_google_sheets():
+    creds = Credentials.from_service_account_info(
+        st.secrets["gcp_service_account"],
+        scopes=SCOPES,
+    )
+    client = gspread.authorize(creds)
+    return client
+
+
+def obter_aba():
+    client = conectar_google_sheets()
+    planilha = client.open(st.secrets["google_sheets"]["spreadsheet_name"])
+    aba = planilha.worksheet(st.secrets["google_sheets"]["worksheet_name"])
+    return aba
+
+
+def salvar_lancamento_google_sheets(registro: dict):
+    aba = obter_aba()
+
+    linha = [
+        registro["tipo"],
+        registro["cliente"],
+        registro["forma de pagamento"],
+        registro["categoria"],
+        registro["produto"],
+        registro["quantidade"],
+        registro["descrição"],
+        registro["valor"],
+        registro["data"],
+    ]
+
+    aba.append_row(linha, value_input_option="USER_ENTERED")
+
+
+# ==========================================================
 # FORMULÁRIO
 # ==========================================================
 with st.form("form_cadastro_lancamento", clear_on_submit=True):
@@ -52,7 +98,12 @@ with st.form("form_cadastro_lancamento", clear_on_submit=True):
         produto = st.selectbox("Produto", PRODUTOS)
 
     with c2:
-        data = st.date_input("Data", value=date.today(), format="DD/MM/YYYY")
+        data_lancamento = st.date_input(
+            "Data",
+            value=date.today(),
+            format="DD/MM/YYYY",
+        )
+
         quantidade = st.number_input(
             "Quantidade",
             min_value=1,
@@ -60,6 +111,7 @@ with st.form("form_cadastro_lancamento", clear_on_submit=True):
             value=1,
             format="%d",
         )
+
         valor = st.number_input(
             "Valor",
             min_value=0.01,
@@ -76,8 +128,9 @@ with st.form("form_cadastro_lancamento", clear_on_submit=True):
 
     submitted = st.form_submit_button("Salvar lançamento")
 
+
 # ==========================================================
-# VALIDAÇÃO E MONTAGEM DO REGISTRO
+# VALIDAÇÃO E SALVAMENTO
 # ==========================================================
 if submitted:
     erros = []
@@ -111,9 +164,17 @@ if submitted:
         "quantidade": int(quantidade),
         "descrição": str(descricao).strip(),
         "valor": float(valor),
-        "data": pd.to_datetime(data).strftime("%Y-%m-%d"),
+        "data": pd.to_datetime(data_lancamento).strftime("%Y-%m-%d"),
     }
 
-    st.success("Lançamento validado com sucesso.")
-    st.write("Registro pronto para salvar:")
-    st.dataframe(pd.DataFrame([novo_registro]), use_container_width=True, hide_index=True)
+    try:
+        salvar_lancamento_google_sheets(novo_registro)
+        st.success("Lançamento salvo com sucesso na planilha.")
+        st.dataframe(
+            pd.DataFrame([novo_registro]),
+            use_container_width=True,
+            hide_index=True,
+        )
+    except Exception as e:
+        st.error("Erro ao salvar no Google Sheets.")
+        st.exception(e)
