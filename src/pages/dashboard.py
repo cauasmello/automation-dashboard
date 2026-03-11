@@ -23,6 +23,8 @@ descricao_col = cols["descricao"]
 cliente_col = cols["cliente"]
 forma_pagamento_col = cols["forma_pagamento"]
 data_col = cols["data"]
+categoria_col = cols.get("categoria")
+produto_col = cols.get("produto")
 
 work_df = aplicar_filtros(
     df=df,
@@ -30,6 +32,8 @@ work_df = aplicar_filtros(
     tipo_col=tipo_col,
     cliente_col=cliente_col,
     forma_pagamento_col=forma_pagamento_col,
+    categoria_col=categoria_col,
+    produto_col=produto_col,
     state_prefix="dashboard",
 )
 
@@ -87,6 +91,8 @@ if len(selected_rows) == 1:
         st.write(f"**Tipo:** {val_or_blank(row, tipo_col)}")
         st.write(f"**Valor:** {val_or_blank(row, valor_col)}")
         st.write(f"**Cliente:** {val_or_blank(row, cliente_col)}")
+        st.write(f"**Categoria:** {val_or_blank(row, categoria_col)}")
+        st.write(f"**Produto:** {val_or_blank(row, produto_col)}")
     with d2:
         st.write(f"**Descrição:** {val_or_blank(row, descricao_col)}")
         st.write(f"**Forma de pagamento:** {val_or_blank(row, forma_pagamento_col)}")

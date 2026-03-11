@@ -23,6 +23,8 @@ valor_col = cols["valor"]
 cliente_col = cols["cliente"]
 forma_pagamento_col = cols["forma_pagamento"]
 data_col = cols["data"]
+categoria_col = cols.get("categoria")
+produto_col = cols.get("produto")
 
 if not data_col:
     st.warning("A base não possui coluna de data.")
@@ -36,6 +38,8 @@ work_df = aplicar_filtros(
     tipo_col=tipo_col,
     cliente_col=cliente_col,
     forma_pagamento_col=forma_pagamento_col,
+    categoria_col=categoria_col,
+    produto_col=produto_col,
     state_prefix="analise",
 )
 

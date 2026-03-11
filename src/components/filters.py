@@ -8,14 +8,14 @@ def aplicar_filtros(
     tipo_col: str | None,
     cliente_col: str | None,
     forma_pagamento_col: str | None,
+    categoria_col: str | None = None,
+    produto_col: str | None = None,
     state_prefix: str = "default",
 ) -> pd.DataFrame:
     """
     Filtros em cascata:
-    - Data restringe Tipo, Cliente e Forma
-    - Tipo restringe Cliente e Forma
-    - Cliente restringe Tipo e Forma
-    - Forma restringe Tipo e Cliente
+    - Data restringe todos os demais
+    - Cada filtro restringe os outros filtros categóricos
     """
 
     def _state_key(nome: str) -> str:
@@ -33,6 +33,8 @@ def aplicar_filtros(
         tipos=None,
         clientes=None,
         formas=None,
+        categorias=None,
+        produtos=None,
     ) -> pd.DataFrame:
         out = base_df.copy()
 
@@ -51,11 +53,19 @@ def aplicar_filtros(
         if forma_pagamento_col and formas:
             out = out[out[forma_pagamento_col].astype(str).isin(formas)].copy()
 
+        if categoria_col and categorias:
+            out = out[out[categoria_col].astype(str).isin(categorias)].copy()
+
+        if produto_col and produtos:
+            out = out[out[produto_col].astype(str).isin(produtos)].copy()
+
         return out
 
     tipo_key = _state_key("filtro_tipo")
     cliente_key = _state_key("filtro_cliente")
     forma_key = _state_key("filtro_forma")
+    categoria_key = _state_key("filtro_categoria")
+    produto_key = _state_key("filtro_produto")
 
     if tipo_key not in st.session_state:
         st.session_state[tipo_key] = []
@@ -65,6 +75,12 @@ def aplicar_filtros(
 
     if forma_key not in st.session_state:
         st.session_state[forma_key] = []
+
+    if categoria_key not in st.session_state:
+        st.session_state[categoria_key] = []
+
+    if produto_key not in st.session_state:
+        st.session_state[produto_key] = []
 
     st.sidebar.header("Filtros")
 
@@ -98,7 +114,13 @@ def aplicar_filtros(
     tipos_sel_atual = st.session_state[tipo_key]
     clientes_sel_atual = st.session_state[cliente_key]
     formas_sel_atual = st.session_state[forma_key]
+    categorias_sel_atual = st.session_state[categoria_key]
+    produtos_sel_atual = st.session_state[produto_key]
 
+    # ==========================================================
+    # TIPO
+    # Data + Cliente + Forma + Categoria + Produto
+    # ==========================================================
     if tipo_col:
         df_tipo = _aplicar(
             df_base,
@@ -106,6 +128,8 @@ def aplicar_filtros(
             fim=fim,
             clientes=clientes_sel_atual,
             formas=formas_sel_atual,
+            categorias=categorias_sel_atual,
+            produtos=produtos_sel_atual,
         )
 
         tipos_disponiveis = sorted(
@@ -121,11 +145,15 @@ def aplicar_filtros(
             "Tipo",
             options=tipos_disponiveis,
             key=tipo_key,
-            placeholder="Choose options",
+            placeholder="Selecione",
         )
 
     tipos_sel_atual = st.session_state[tipo_key]
 
+    # ==========================================================
+    # CLIENTE
+    # Data + Tipo + Forma + Categoria + Produto
+    # ==========================================================
     if cliente_col:
         df_cliente = _aplicar(
             df_base,
@@ -133,6 +161,8 @@ def aplicar_filtros(
             fim=fim,
             tipos=tipos_sel_atual,
             formas=formas_sel_atual,
+            categorias=categorias_sel_atual,
+            produtos=produtos_sel_atual,
         )
 
         clientes_disponiveis = sorted(
@@ -148,12 +178,16 @@ def aplicar_filtros(
             "Cliente",
             options=clientes_disponiveis,
             key=cliente_key,
-            placeholder="Choose options",
+            placeholder="Selecione",
         )
 
     tipos_sel_atual = st.session_state[tipo_key]
     clientes_sel_atual = st.session_state[cliente_key]
 
+    # ==========================================================
+    # FORMA DE PAGAMENTO
+    # Data + Tipo + Cliente + Categoria + Produto
+    # ==========================================================
     if forma_pagamento_col:
         df_forma = _aplicar(
             df_base,
@@ -161,6 +195,8 @@ def aplicar_filtros(
             fim=fim,
             tipos=tipos_sel_atual,
             clientes=clientes_sel_atual,
+            categorias=categorias_sel_atual,
+            produtos=produtos_sel_atual,
         )
 
         formas_disponiveis = sorted(
@@ -176,9 +212,83 @@ def aplicar_filtros(
             "Forma de pagamento",
             options=formas_disponiveis,
             key=forma_key,
-            placeholder="Choose options",
+            placeholder="Selecione",
         )
 
+    tipos_sel_atual = st.session_state[tipo_key]
+    clientes_sel_atual = st.session_state[cliente_key]
+    formas_sel_atual = st.session_state[forma_key]
+
+    # ==========================================================
+    # CATEGORIA
+    # Data + Tipo + Cliente + Forma + Produto
+    # ==========================================================
+    if categoria_col:
+        df_categoria = _aplicar(
+            df_base,
+            inicio=inicio,
+            fim=fim,
+            tipos=tipos_sel_atual,
+            clientes=clientes_sel_atual,
+            formas=formas_sel_atual,
+            produtos=produtos_sel_atual,
+        )
+
+        categorias_disponiveis = sorted(
+            df_categoria[categoria_col].dropna().astype(str).unique().tolist()
+        )
+
+        st.session_state[categoria_key] = _limpar_selecao_invalida(
+            st.session_state[categoria_key],
+            categorias_disponiveis,
+        )
+
+        st.sidebar.multiselect(
+            "Categoria",
+            options=categorias_disponiveis,
+            key=categoria_key,
+            placeholder="Selecione",
+        )
+
+    tipos_sel_atual = st.session_state[tipo_key]
+    clientes_sel_atual = st.session_state[cliente_key]
+    formas_sel_atual = st.session_state[forma_key]
+    categorias_sel_atual = st.session_state[categoria_key]
+
+    # ==========================================================
+    # PRODUTO
+    # Data + Tipo + Cliente + Forma + Categoria
+    # ==========================================================
+    if produto_col:
+        df_produto = _aplicar(
+            df_base,
+            inicio=inicio,
+            fim=fim,
+            tipos=tipos_sel_atual,
+            clientes=clientes_sel_atual,
+            formas=formas_sel_atual,
+            categorias=categorias_sel_atual,
+        )
+
+        produtos_disponiveis = sorted(
+            df_produto[produto_col].dropna().astype(str).unique().tolist()
+        )
+
+        st.session_state[produto_key] = _limpar_selecao_invalida(
+            st.session_state[produto_key],
+            produtos_disponiveis,
+        )
+
+        st.sidebar.multiselect(
+            "Produto",
+            options=produtos_disponiveis,
+            key=produto_key,
+            placeholder="Selecione",
+        )
+
+    # ==========================================================
+    # DATAFRAME FINAL
+    # ==========================================================
     work_df = _aplicar(
         df_base,
         inicio=inicio,
@@ -186,6 +296,8 @@ def aplicar_filtros(
         tipos=st.session_state[tipo_key],
         clientes=st.session_state[cliente_key],
         formas=st.session_state[forma_key],
+        categorias=st.session_state[categoria_key],
+        produtos=st.session_state[produto_key],
     )
 
     return work_df
