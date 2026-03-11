@@ -61,7 +61,7 @@ def conectar_google_sheets():
 
 def obter_aba():
     client = conectar_google_sheets()
-    planilha = client.open(st.secrets["google_sheets"]["spreadsheet_name"])
+    planilha = client.open_by_key(st.secrets["google_sheets"]["spreadsheet_id"])
     aba = planilha.worksheet(st.secrets["google_sheets"]["worksheet_name"])
     return aba
 
